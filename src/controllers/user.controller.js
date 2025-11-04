@@ -1,4 +1,5 @@
-import Usuario from "../models/usuario.model.js";
+import Usuario from '../classes/usuario.js';
+
 
 const listarUsuarios = async (req, res) => {
   try {
@@ -9,4 +10,4 @@ const listarUsuarios = async (req, res) => {
   }
 };
 
-module.exports = { listarUsuarios };
+export default { listarUsuarios };

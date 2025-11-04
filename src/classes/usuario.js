@@ -7,7 +7,7 @@ class Usuario {
     this.username = username;
     this.email = email;
     this.password = password;
-    this.rol = rolModel.;
+    this.rol = rol;
   }
 
   async registrar() {
