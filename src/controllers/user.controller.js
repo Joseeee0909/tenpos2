@@ -1,0 +1,12 @@
+import Usuario from "../models/usuario.model.js";
+
+const listarUsuarios = async (req, res) => {
+  try {
+    const usuarios = await Usuario.obtenerTodos();
+    res.json(usuarios);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = { listarUsuarios };
