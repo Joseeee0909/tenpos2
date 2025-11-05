@@ -6,14 +6,15 @@ const SECRET_KEY = "clave_secreta_temporal";
 class AuthController {
     static async register(req, res) {
     try {
-      const { username, email, password, rol } = req.body;
+      const { nombre, username, email, password, rol } = req.body;
 
-const nuevoUsuario = new Usuario(username, email, password, rol);
+const nuevoUsuario = new Usuario(nombre, username, email, password, rol);
       const user = await nuevoUsuario.registrar();
 
       res.status(201).json({
         mensaje: "Usuario registrado correctamente",
         usuario: {
+          nombre: user.nombre,
           username: user.username,
           email: user.email,
           password: user.password,
