@@ -1,5 +1,6 @@
 // UserRegistration.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import authService from '../services/api.js';
 import '../styles/register.css';
 
@@ -17,11 +18,20 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState('');
 
-  const roles = [
-    { value: 'administrador', label: 'Administrador', icon: '👨‍💼' },
-    { value: 'mesero', label: 'Mesero', icon: '🧑‍🍳' },
-    { value: 'cocinero', label: 'Cocinero', icon: '👨‍🍳' }
-  ];
+  const [roles, setRoles] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const rs = await authService.getRoles();
+        // rs is array of { _id, nombre, descripcion }
+        setRoles(rs.map(r => ({ value: r.nombre, label: r.nombre, descripcion: r.descripcion })));
+      } catch (err) {
+        console.error('No se pudieron cargar roles', err);
+      }
+    };
+    load();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -115,10 +125,21 @@ export default function Register() {
   return (
     <div className="app-container">
       <div className="form-container">
-        <div className="header">
-          <div className="header-icon">🛡️</div>
-          <h1>Registro de Usuario</h1>
-          <p>Complete el formulario para crear una cuenta</p>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+          <div className="header">
+            <div className="header-icon">🛡️</div>
+            <h1>Registro de Usuario</h1>
+            <p>Complete el formulario para crear una cuenta</p>
+          </div>
+          <Link to="/admin/roles" style={{
+            marginLeft: 12,
+            padding: '8px 12px',
+            background: '#667eea',
+            color: 'white',
+            borderRadius: 8,
+            textDecoration: 'none',
+            fontWeight: 600
+          }}>Crear roles</Link>
         </div>
 
         {submitted && (
@@ -199,23 +220,27 @@ export default function Register() {
           <div className="form-group">
             <label>Rol</label>
             <div className="roles-container">
-              {roles.map(role => (
-                <div key={role.value} className="role-option">
-                  <input
-                    type="radio"
-                    id={role.value}
-                    name="rol"
-                    value={role.value}
-                    checked={formData.rol === role.value}
-                    onChange={handleChange}
-                    className="role-input"
-                  />
-                  <label htmlFor={role.value} className="role-label">
-                    <span className="role-icon">{role.icon}</span>
-                    <span className="role-name">{role.label}</span>
-                  </label>
-                </div>
-              ))}
+              {roles.length === 0 ? (
+                <div>No hay roles disponibles. Pide a un administrador que cree roles.</div>
+              ) : (
+                roles.map(role => (
+                  <div key={role.value} className="role-option">
+                    <input
+                      type="radio"
+                      id={role.value}
+                      name="rol"
+                      value={role.value}
+                      checked={formData.rol === role.value}
+                      onChange={handleChange}
+                      className="role-input"
+                    />
+                    <label htmlFor={role.value} className="role-label">
+                      <span className="role-icon">👤</span>
+                      <span className="role-name">{role.label}</span>
+                    </label>
+                  </div>
+                ))
+              )}
             </div>
             {errors.rol && <div className="error-message">{errors.rol}</div>}
           </div>

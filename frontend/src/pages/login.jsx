@@ -1,6 +1,7 @@
 // Login.jsx
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import authService from '../services/api.js';
+import { AuthContext } from '../context/AuthContext';
 import '../styles/login.css';
 
 export default function Login() {
@@ -9,6 +10,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { login: contextLogin } = useContext(AuthContext) || {};
 
   const handleSubmit = async () => {
     setError('');
@@ -23,19 +25,19 @@ export default function Login() {
     try {
       const data = await authService.login(username, password);
       console.log('Respuesta del servidor:', data);
-
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-      }
-      
-      if (data.usuario) {
-        authService.saveUser(data.usuario);
+      // If AuthContext is available, call its login; otherwise fall back to localStorage
+      if (typeof contextLogin === 'function') {
+        contextLogin({ token: data.token, usuario: data.usuario });
+      } else {
+        if (data.token) localStorage.setItem('token', data.token);
+        if (data.usuario) localStorage.setItem('usuario', JSON.stringify(data.usuario));
       }
 
       alert(`${data.mensaje || 'Bienvenido'}, ${data.usuario?.username || username}!`);
       
       const rol = data.usuario?.rol;
-      if (rol === 'admin' || rol === 'root') {
+      // accept several possible admin role strings
+      if (rol === 'admin' || rol === 'root' || rol === 'administrador') {
         window.location.href = '/admin/register';
       } else if (rol === 'mesero') {
         window.location.href = '/mesero/ordenes';

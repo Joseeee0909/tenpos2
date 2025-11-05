@@ -12,6 +12,12 @@ class Usuario {
   }
 
   async registrar() {
+    // Verificar que el rol exista en la base de datos
+    const rolExistente = await rolModel.findOne({ nombre: this.rol });
+    if (!rolExistente) {
+      throw new Error(`Rol "${this.rol}" no existe. Crea el rol antes de asignarlo.`);
+    }
+
     const hashedPassword = await bcrypt.hash(this.password, 10);
 
     const nuevoUsuario = new UsuarioModel({

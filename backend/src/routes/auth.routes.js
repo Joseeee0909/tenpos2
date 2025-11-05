@@ -1,8 +1,10 @@
 import { Router } from 'express';
 const router = Router();
 import AuthController from "../controllers/auth.controller.js";
+import { verifyToken, requireRole } from '../middlewares/auth.middleware.js';
 
-router.post("/register",AuthController.register)
+// Registrar usuarios: solo administradores pueden crear usuarios nuevos
+router.post("/register", verifyToken, requireRole('administrador','admin','root'), AuthController.register)
 router.post("/login", AuthController.login)
 router.post("/logout", AuthController.logout)
 

@@ -62,9 +62,21 @@ const register = async ({ nombre, username, password, email, rol }) => {
   return response.data;
 };
 
+const getRoles = async () => {
+  const response = await axiosInstance.get('/roles');
+  return response.data.roles || [];
+};
+
+const createRole = async ({ nombre, descripcion }) => {
+  const response = await axiosInstance.post('/roles', { nombre, descripcion });
+  return response.data;
+};
+
 export default {
   axios: axiosInstance,
   login,
   saveUser,
   register,
+  getRoles,
+  createRole,
 };

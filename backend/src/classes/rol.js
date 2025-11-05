@@ -1,4 +1,4 @@
-import rolModel from "../models/rol.model.js";
+import RolModel from "../models/rol.model.js";
 
 class Rol {
   constructor(nombre, descripcion) {
