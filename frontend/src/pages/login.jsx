@@ -77,7 +77,7 @@ export default function Login() {
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </div>
-          <h1 className="title">Sistema de Restaurante</h1>
+          <h1 className="title">Sistema TenPos</h1>
           <p className="subtitle">Ingresa tus credenciales para continuar</p>
         </div>
 
