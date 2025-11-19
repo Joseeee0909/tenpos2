@@ -1,79 +1,61 @@
 
-
-import React, { useState } from 'react';
-import './Products.css';
+import React, { useState, useEffect, useContext } from 'react';
+import authService from '../services/api.js';
+import { AuthContext } from '../context/AuthContext';
+import '../styles/product.css';
 
 const Products = () => {
-  const [products, setProducts] = useState([
-    {
-      id: 1,
-      name: 'Hamburguesa Clásica',
-      category: 'Comida',
-      price: 12.99,
-      stock: 45,
-      image: '🍔',
-      status: 'active'
-    },
-    {
-      id: 2,
-      name: 'Pizza Margherita',
-      category: 'Comida',
-      price: 15.99,
-      stock: 30,
-      image: '🍕',
-      status: 'active'
-    },
-    {
-      id: 3,
-      name: 'Coca Cola',
-      category: 'Bebida',
-      price: 2.99,
-      stock: 120,
-      image: '🥤',
-      status: 'active'
-    },
-    {
-      id: 4,
-      name: 'Cerveza Artesanal',
-      category: 'Bebida',
-      price: 5.99,
-      stock: 8,
-      image: '🍺',
-      status: 'active'
-    },
-    {
-      id: 5,
-      name: 'Ensalada César',
-      category: 'Comida',
-      price: 9.99,
-      stock: 25,
-      image: '🥗',
-      status: 'active'
-    },
-    {
-      id: 6,
-      name: 'Tacos al Pastor',
-      category: 'Comida',
-      price: 8.99,
-      stock: 0,
-      image: '🌮',
-      status: 'inactive'
-    }
-  ]);
+  const [products, setProducts] = useState([]);
 
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
+  // form data uses backend-friendly values for category (lowercase)
   const [formData, setFormData] = useState({
     name: '',
-    category: 'Comida',
+    category: 'otro',
     price: '',
     stock: '',
-    image: '🍽️'
+    image: '�️'
   });
 
-  const categories = ['Comida', 'Bebida', 'Postre', 'Entrada'];
+  // categories must match backend enum: bebida, comida, postre, otro
+  const categories = [
+    { value: 'comida', label: 'Comida' },
+    { value: 'bebida', label: 'Bebida' },
+    { value: 'postre', label: 'Postre' },
+    { value: 'otro', label: 'Otro' }
+  ];
+
+  const { user } = useContext(AuthContext) || {};
+
+  useEffect(() => {
+    fetchProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const axios = authService.axios;
+
+  const fetchProducts = async () => {
+    try {
+      const res = await axios.get('/products');
+      const data = res.data.productos || [];
+      setProducts(data.map(p => ({
+        id: p._id,
+        name: p.nombre,
+        category: p.categoria,
+        price: p.precio,
+        stock: p.stock,
+        image: p.imagen || '�️',
+        status: p.stock > 0 ? 'active' : 'inactive',
+        descripcion: p.descripcion
+      })));
+    } catch (err) {
+      console.error('Error fetching products:', err);
+      setProducts([]);
+    }
+  };
 
   const handleOpenModal = (product = null) => {
     if (product) {

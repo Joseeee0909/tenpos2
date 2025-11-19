@@ -5,6 +5,7 @@ import Register from './pages/register.jsx';
 import Login from './pages/login.jsx';
 import RolesPage from './pages/roles.jsx';
 import ProductsPage from './pages/product.jsx';
+import MenuPage from './pages/menu.jsx';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import NavBar from './components/NavBar';
@@ -26,12 +27,20 @@ function RoutesWrapper() {
   // Authenticated routes
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/admin/register" replace />} />
+      <Route path="/" element={<Navigate to="/menu" replace />} />
       <Route path="/login" element={<Login />} />
       <Route
-        path="/products"
+        path="/menu/*"
         element={
           <ProtectedRoute>
+            <MenuPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/productos"
+        element={
+          <ProtectedRoute >
             <ProductsPage />
           </ProtectedRoute>
         }
@@ -53,7 +62,7 @@ function RoutesWrapper() {
         }
       />
       {/* catch-all for authenticated users */}
-      <Route path="*" element={<Navigate to="/admin/register" replace />} />
+      <Route path="*" element={<Navigate to="/menu" replace />} />
     </Routes>
   );
 }
@@ -62,7 +71,6 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <NavBar />
         <RoutesWrapper />
       </AuthProvider>
     </Router>

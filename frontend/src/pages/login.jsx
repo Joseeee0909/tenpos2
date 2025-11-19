@@ -1,4 +1,4 @@
-// Login.jsx
+
 import { useState, useContext } from 'react';
 import authService from '../services/api.js';
 import { AuthContext } from '../context/AuthContext';
@@ -35,17 +35,8 @@ export default function Login() {
 
       alert(`${data.mensaje || 'Bienvenido'}, ${data.usuario?.username || username}!`);
       
-      const rol = data.usuario?.rol;
-      // accept several possible admin role strings
-      if (rol === 'admin' || rol === 'root' || rol === 'administrador') {
-        window.location.href = '/admin/register';
-      } else if (rol === 'mesero') {
-        window.location.href = '/mesero/ordenes';
-      } else if (rol === 'cocinero') {
-        window.location.href = '/cocina';
-      } else {
-        window.location.href = '/register';
-      }
+      // Redirigir siempre a la pantalla de inicio (menu) tras login exitoso
+      window.location.href = '/menu';
       
     } catch (err) {
       console.error('Error en login:', err);
