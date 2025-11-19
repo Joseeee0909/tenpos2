@@ -4,7 +4,8 @@ const productSchema = new mongoose.Schema ({
     precio : {type: Number, required: true},
     descripcion: {type: String, trim : true},
     categoria: {type: String, trim : true, enum : ["bebida", "comida", "postre", "otro"]},
-    stock: {type: Number, default: 0, min: 0}
+    stock: {type: Number, default: 0, min: 0},
+    disponible: { type: Boolean, default: true }
 });
 
 export default mongoose.model('Product', productSchema);

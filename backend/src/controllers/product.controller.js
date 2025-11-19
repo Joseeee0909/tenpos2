@@ -13,11 +13,11 @@ class ProductController {
     }
     static async crearProducto(req, res) {
         try {
-            const { nombre, precio, descripcion, categoria, stock } = req.body;
+            const { nombre, precio, descripcion, categoria, stock, disponible= true} = req.body;
             if (!nombre || !precio || !descripcion || !categoria) {
                 return res.status(400).json({ mensaje: 'Faltan datos requeridos' });
             }
-            const nuevoProducto = new Producto(nombre, precio, descripcion, categoria, stock);
+            const nuevoProducto = new Producto(nombre, precio, descripcion, categoria, stock, disponible);
             const savedProduct = await nuevoProducto.guardar();
             res.status(201).json({ mensaje: 'Producto creado', producto: savedProduct });
         } catch (err) {
@@ -25,6 +25,25 @@ class ProductController {
             res.status(500).json({ error: err.message });
         }
     }
+    static async cambiarDisponibilidad(req, res) {
+    try {
+        const { id } = req.params;
+        const { disponible } = req.body;
+
+        const productoInstance = new Producto();
+        const actualizado = await productoInstance.actualizarPorId(id, { disponible });
+
+        if (!actualizado) {
+            return res.status(404).json({ mensaje: 'Producto no encontrado' });
+        }
+
+        res.status(200).json({ mensaje: 'Disponibilidad actualizada', producto: actualizado });
+
+    } catch (err) {
+        console.error('Error cambiando disponibilidad:', err);
+        res.status(500).json({ error: err.message });
+    }
+}
     static async eliminarProducto(req, res) {
         try {
             const { id } = req.params;

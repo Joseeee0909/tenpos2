@@ -12,6 +12,8 @@ const Products = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [showOnlyAvailable, setShowOnlyAvailable] = useState(false);
+
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -34,9 +36,6 @@ const Products = () => {
     fetchProducts();
   }, []);
 
-  // ============================
-  //        CRUD BACKEND
-  // ============================
 
   const fetchProducts = async () => {
     try {
@@ -50,7 +49,8 @@ const Products = () => {
           precio: p.precio,
           categoria: p.categoria,
           descripcion: p.descripcion,
-          stock: p.stock,
+          stock: Number(p.stock),
+          disponible: p.disponible !== false
         }))
       );
     } catch (err) {
@@ -59,26 +59,42 @@ const Products = () => {
     }
   };
 
-  // CREATE
   const createProduct = async () => {
-    const res = await axios.post('/products/productos', formData);
-    return res.data.producto;
-  };
+  const res = await axios.post('/products/productos', formData);
+  const p = res.data.producto;
 
-  // UPDATE
+  return {
+    id: p._id,
+    nombre: p.nombre,
+    precio: p.precio,
+    categoria: p.categoria,
+    descripcion: p.descripcion,
+    stock: Number(p.stock),
+    disponible: p.disponible !== false
+  };
+};
+
+
   const updateProduct = async (id) => {
-    const res = await axios.put(`/products/productos/${id}`, formData);
-    return res.data.producto;
-  };
+  const res = await axios.put(`/products/productos/${id}`, formData);
+  const p = res.data.producto;
 
-  // DELETE
+  return {
+    id: p._id,
+    nombre: p.nombre,
+    precio: p.precio,
+    categoria: p.categoria,
+    descripcion: p.descripcion,
+    stock: p.stock,
+    disponible: p.disponible !== false
+  };
+};
+
   const deleteProduct = async (id) => {
     await axios.delete(`/products/productos/${id}`);
   };
 
-  // ============================
-  //        MODAL HANDLERS
-  // ============================
+
 
   const handleOpenModal = (product = null) => {
     if (product) {
@@ -137,38 +153,60 @@ const Products = () => {
 
   // DELETE
   const handleDelete = async (id) => {
-    if (!window.confirm("¿Estás seguro de eliminar este producto?")) return;
+  if (!window.confirm("¿Marcar como NO disponible?")) return;
 
-    try {
-      await deleteProduct(id);
-      setProducts(products.filter(p => p.id !== id));
-    } catch (err) {
-      alert("Error eliminando producto");
-    }
-  };
+  try {
+    await deleteProduct(id);
 
-  // ============================
-  //       FILTROS Y BUSQUEDA
-  // ============================
+    setProducts(products.map(p =>
+      p.id === id ? { ...p, disponible: false } : p
+    ));
+  } catch (err) {
+    alert("Error marcando como no disponible");
+  }
+};
+const toggleDisponible = async (id, valor) => {
+  try {
+    const res = await axios.patch(`/products/productos/${id}/disponible`, {
+      disponible: valor
+    });
+
+    setProducts(products.map(p =>
+      p.id === id ? { ...p, disponible: valor } : p
+    ));
+  } catch (err) {
+    console.error("Error cambiando disponibilidad:", err);
+  }
+};
+
+const getStockClass = (stock) => {
+  const s = Number(stock);
+  if (s < 5) return "stock-red";       // rojo
+  if (s < 10) return "stock-yellow";   // amarillo
+  return "stock-green";                    // verde
+};
+
+
 
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.nombre
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
+  const matchesSearch = product.nombre
+    .toLowerCase()
+    .includes(searchTerm.toLowerCase());
 
-    const matchesCategory =
-      filterCategory === 'all' || product.categoria === filterCategory;
+  const matchesCategory =
+    filterCategory === 'all' || product.categoria === filterCategory;
 
-    return matchesSearch && matchesCategory;
-  });
+  const matchesAvailable =
+    !showOnlyAvailable || product.disponible;
+
+  return matchesSearch && matchesCategory && matchesAvailable;
+});
+
 
   const totalProducts = products.length;
   const lowStockProducts = products.filter(p => p.stock < 10 && p.stock > 0).length;
   const outOfStockProducts = products.filter(p => p.stock === 0).length;
 
-  // ============================
-  //        RENDER
-  // ============================
 
   return (
     <div className="products-container">
@@ -205,6 +243,16 @@ const Products = () => {
           >
             Todos
           </button>
+          <div className="available-filter">
+            <label>
+              <input
+                type="checkbox"
+                checked={showOnlyAvailable}
+                onChange={(e) => setShowOnlyAvailable(e.target.checked)}
+              />
+              Mostrar solo disponibles
+            </label>
+          </div>
 
           {categories.map(cat => (
             <button
@@ -229,36 +277,54 @@ const Products = () => {
               <th>STOCK</th>
               <th>DESCRIPCIÓN</th>
               <th>ACCIONES</th>
+              <th>DISPONIBLE</th>
             </tr>
           </thead>
 
           <tbody>
-            {filteredProducts.map(product => (
-              <tr key={product.id}>
-                <td>{product.nombre}</td>
-                <td>{product.categoria}</td>
-                <td>${product.precio}</td>
-                <td>{product.stock}</td>
-                <td>{product.descripcion}</td>
+          {filteredProducts.map(product => (
+            <tr key={product.id} className={!product.disponible ? "inactive-row" : ""}>
+              
+              <td>{product.nombre}</td>
+              <td>{product.categoria}</td>
+              <td>${product.precio}</td>
+              <td>
+                <span className={`stock-badge ${getStockClass(product.stock)}`}>
+                  {product.stock} unidades
+                </span>
+              </td>
+              <td>{product.descripcion}</td>
+              
+              {/* ACCIONES */}
+              <td>
+                <button
+                  className="action-btn edit"
+                  onClick={() => handleOpenModal(product)}
+                >
+                  ✏️
+                </button>
 
-                <td>
-                  <button
-                    className="action-btn edit"
-                    onClick={() => handleOpenModal(product)}
-                  >
-                    ✏️
-                  </button>
+                <button
+                  className="action-btn edit"
+                  onClick={() => toggleDisponible(product.id, !product.disponible)}
+                >
+                  {product.disponible ? "❌ Desactivar" : "✔ Activar"}
+                </button>
 
-                  <button
-                    className="action-btn delete"
-                    onClick={() => handleDelete(product.id)}
-                  >
-                    🗑️
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
+                <button
+                  className="action-btn delete"
+                  onClick={() => handleDelete(product.id)}
+                >
+                  🗑️
+                </button>
+              </td>
+
+              {/* DISPONIBLE */}
+              <td>{product.disponible ? "Sí" : "No"}</td>
+
+            </tr>
+          ))}
+        </tbody>
         </table>
 
         {filteredProducts.length === 0 && (

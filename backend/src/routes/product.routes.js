@@ -32,6 +32,8 @@ router.delete(
     requireRole('administrador', 'admin', 'root'),
     ProductController.eliminarProducto
 );
+router.patch('/productos/:id/disponible', verifyToken, requireRole('admin', 'root', 'administrador'), ProductController.cambiarDisponibilidad);
+
 
 export default router;
 
