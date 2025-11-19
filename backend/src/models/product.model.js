@@ -1,0 +1,10 @@
+import mongoose from "mongoose";
+const productSchema = new mongoose.Schema ({
+    nombre: {type: String, required: true, trim : true},
+    precio : {type: Number, required: true},
+    descripcion: {type: String, trim : true},
+    categoria: {type: String, trim : true, enum : ["bebida", "comida", "postre", "otro"]},
+    stock: {type: Number, default: 0, min: 0}
+});
+
+export default mongoose.model('Product', productSchema);
