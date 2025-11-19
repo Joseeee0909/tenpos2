@@ -40,7 +40,7 @@ function RoutesWrapper() {
       <Route
         path="/productos"
         element={
-          <ProtectedRoute >
+          <ProtectedRoute allowedRoles={["administrador", "admin", "root"]}>
             <ProductsPage />
           </ProtectedRoute>
         }

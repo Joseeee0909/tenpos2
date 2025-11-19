@@ -25,7 +25,7 @@ class ProductController {
             res.status(500).json({ error: err.message });
         }
     }
-    async eliminarProducto(req, res) {
+    static async eliminarProducto(req, res) {
         try {
             const { id } = req.params;
             const productoInstance = new Producto();
@@ -42,7 +42,7 @@ class ProductController {
             res.status(500).json({ error: err.message });
         }
     }
-    async actualizarProducto(req, res) {
+    static async actualizarProducto(req, res) {
         try {
             const { id } = req.params;
             const datosActualizados = req.body;
@@ -57,7 +57,7 @@ class ProductController {
             res.status(500).json({ error: err.message });
         }
     }
-    async obtenerProductoPorId(req, res) {
+    static async obtenerProductoPorId(req, res) {
         try {
             const { id } = req.params;
             const productoInstance = new Producto();

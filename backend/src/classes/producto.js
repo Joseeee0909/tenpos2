@@ -19,6 +19,7 @@ class Producto {
     async actualizarPorId(id, datosActualizados) {
         return await productModel.findByIdAndUpdate(id, datosActualizados, { new: true });
     }
+    
     async guardar() {
         const nuevoProducto = new productModel({
             nombre: this.nombre,
@@ -28,7 +29,8 @@ class Producto {
             stock: this.stock
         });
         return await nuevoProducto.save();
-    }; 
+    };
+    
 
 }
 

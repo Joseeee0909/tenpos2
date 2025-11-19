@@ -26,8 +26,8 @@ import { AuthContext } from '../context/AuthContext';
           <div className="logo">
             <div className="logo-icon">🍽️</div>
             <div className="logo-text">
-              <h2>Sistema</h2>
-              <p>Restaurante</p>
+              <h2>TenPos</h2>
+              <p>L10</p>
             </div>
           </div>
           {user && (
@@ -79,7 +79,7 @@ import { AuthContext } from '../context/AuthContext';
     return (
       <div>
         <div className="welcome-banner">
-          <h2>¡Bienvenido al Sistema! 👋</h2>
+          <h2>¡Bienvenido a TenPos! 👋</h2>
           <p>Gestiona tu restaurante de manera eficiente y profesional</p>
         </div>
 

@@ -1,3 +1,4 @@
+// src/pages/product.jsx
 
 import React, { useState, useEffect, useContext } from 'react';
 import authService from '../services/api.js';
@@ -11,72 +12,95 @@ const Products = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
-  // form data uses backend-friendly values for category (lowercase)
+
   const [formData, setFormData] = useState({
-    name: '',
-    category: 'otro',
-    price: '',
+    nombre: '',
+    precio: '',
+    categoria: 'comida',
+    descripcion: '',
     stock: '',
-    image: '�️'
   });
 
-  // categories must match backend enum: bebida, comida, postre, otro
   const categories = [
     { value: 'comida', label: 'Comida' },
     { value: 'bebida', label: 'Bebida' },
     { value: 'postre', label: 'Postre' },
-    { value: 'otro', label: 'Otro' }
+    { value: 'otro',  label: 'Otro' }
   ];
 
-  const { user } = useContext(AuthContext) || {};
+  const axios = authService.axios;
 
   useEffect(() => {
     fetchProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const axios = authService.axios;
+  // ============================
+  //        CRUD BACKEND
+  // ============================
 
   const fetchProducts = async () => {
     try {
       const res = await axios.get('/products');
       const data = res.data.productos || [];
-      setProducts(data.map(p => ({
-        id: p._id,
-        name: p.nombre,
-        category: p.categoria,
-        price: p.precio,
-        stock: p.stock,
-        image: p.imagen || '�️',
-        status: p.stock > 0 ? 'active' : 'inactive',
-        descripcion: p.descripcion
-      })));
+
+      setProducts(
+        data.map(p => ({
+          id: p._id,
+          nombre: p.nombre,
+          precio: p.precio,
+          categoria: p.categoria,
+          descripcion: p.descripcion,
+          stock: p.stock,
+        }))
+      );
     } catch (err) {
       console.error('Error fetching products:', err);
       setProducts([]);
     }
   };
 
+  // CREATE
+  const createProduct = async () => {
+    const res = await axios.post('/products/productos', formData);
+    return res.data.producto;
+  };
+
+  // UPDATE
+  const updateProduct = async (id) => {
+    const res = await axios.put(`/products/productos/${id}`, formData);
+    return res.data.producto;
+  };
+
+  // DELETE
+  const deleteProduct = async (id) => {
+    await axios.delete(`/products/productos/${id}`);
+  };
+
+  // ============================
+  //        MODAL HANDLERS
+  // ============================
+
   const handleOpenModal = (product = null) => {
     if (product) {
       setEditingProduct(product);
       setFormData({
-        name: product.name,
-        category: product.category,
-        price: product.price,
-        stock: product.stock,
-        image: product.image
+        nombre: product.nombre,
+        precio: product.precio,
+        categoria: product.categoria,
+        descripcion: product.descripcion,
+        stock: product.stock
       });
     } else {
       setEditingProduct(null);
       setFormData({
-        name: '',
-        category: 'Comida',
-        price: '',
-        stock: '',
-        image: '🍽️'
+        nombre: '',
+        precio: '',
+        categoria: 'comida',
+        descripcion: '',
+        stock: ''
       });
     }
+
     setShowModal(true);
   };
 
@@ -84,117 +108,96 @@ const Products = () => {
     setShowModal(false);
     setEditingProduct(null);
     setFormData({
-      name: '',
-      category: 'Comida',
-      price: '',
-      stock: '',
-      image: '🍽️'
+      nombre: '',
+      precio: '',
+      categoria: 'comida',
+      descripcion: '',
+      stock: ''
     });
   };
 
-  const handleSubmit = (e) => {
+  // SUBMIT (CREATE + UPDATE)
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (editingProduct) {
-      setProducts(products.map(p => 
-        p.id === editingProduct.id 
-          ? { ...p, ...formData, price: parseFloat(formData.price), stock: parseInt(formData.stock) }
-          : p
-      ));
-    } else {
-      const newProduct = {
-        id: products.length + 1,
-        ...formData,
-        price: parseFloat(formData.price),
-        stock: parseInt(formData.stock),
-        status: parseInt(formData.stock) > 0 ? 'active' : 'inactive'
-      };
-      setProducts([...products, newProduct]);
+
+    try {
+      if (editingProduct) {
+        const updated = await updateProduct(editingProduct.id);
+        setProducts(products.map(p => (p.id === editingProduct.id ? updated : p)));
+      } else {
+        const created = await createProduct();
+        setProducts([...products, created]);
+      }
+
+      handleCloseModal();
+    } catch (err) {
+      alert("Error guardando el producto");
     }
-    
-    handleCloseModal();
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('¿Estás seguro de eliminar este producto?')) {
+  // DELETE
+  const handleDelete = async (id) => {
+    if (!window.confirm("¿Estás seguro de eliminar este producto?")) return;
+
+    try {
+      await deleteProduct(id);
       setProducts(products.filter(p => p.id !== id));
+    } catch (err) {
+      alert("Error eliminando producto");
     }
   };
 
-  const handleToggleStatus = (id) => {
-    setProducts(products.map(p => 
-      p.id === id 
-        ? { ...p, status: p.status === 'active' ? 'inactive' : 'active' }
-        : p
-    ));
-  };
+  // ============================
+  //       FILTROS Y BUSQUEDA
+  // ============================
 
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
+    const matchesSearch = product.nombre
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+
+    const matchesCategory =
+      filterCategory === 'all' || product.categoria === filterCategory;
+
     return matchesSearch && matchesCategory;
   });
 
   const totalProducts = products.length;
-  const activeProducts = products.filter(p => p.status === 'active').length;
   const lowStockProducts = products.filter(p => p.stock < 10 && p.stock > 0).length;
   const outOfStockProducts = products.filter(p => p.stock === 0).length;
 
+  // ============================
+  //        RENDER
+  // ============================
+
   return (
     <div className="products-container">
+
       <div className="products-header">
         <div className="header-content">
           <h1>Gestión de Productos</h1>
-          <p>Administra el catálogo completo de productos del restaurante</p>
+          <p>Administra el catálogo completo del restaurante</p>
         </div>
+
         <button className="btn-primary" onClick={() => handleOpenModal()}>
           <span className="btn-icon">➕</span>
           Nuevo Producto
         </button>
       </div>
 
-      <div className="stats-grid">
-        <div className="stat-box blue">
-          <div className="stat-icon">📦</div>
-          <div className="stat-info">
-            <div className="stat-number">{totalProducts}</div>
-            <div className="stat-text">Total Productos</div>
-          </div>
-        </div>
-        <div className="stat-box green">
-          <div className="stat-icon">✅</div>
-          <div className="stat-info">
-            <div className="stat-number">{activeProducts}</div>
-            <div className="stat-text">Activos</div>
-          </div>
-        </div>
-        <div className="stat-box orange">
-          <div className="stat-icon">⚠️</div>
-          <div className="stat-info">
-            <div className="stat-number">{lowStockProducts}</div>
-            <div className="stat-text">Stock Bajo</div>
-          </div>
-        </div>
-        <div className="stat-box red">
-          <div className="stat-icon">❌</div>
-          <div className="stat-info">
-            <div className="stat-number">{outOfStockProducts}</div>
-            <div className="stat-text">Sin Stock</div>
-          </div>
-        </div>
-      </div>
-
+      {/* FILTROS */}
       <div className="filters-section">
         <div className="search-box">
           <span className="search-icon">🔍</span>
           <input
             type="text"
-            placeholder="Buscar productos..."
+            placeholder="Buscar producto..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
           />
         </div>
+
         <div className="filter-buttons">
           <button
             className={`filter-btn ${filterCategory === 'all' ? 'active' : ''}`}
@@ -202,73 +205,56 @@ const Products = () => {
           >
             Todos
           </button>
+
           {categories.map(cat => (
             <button
-              key={cat}
-              className={`filter-btn ${filterCategory === cat ? 'active' : ''}`}
-              onClick={() => setFilterCategory(cat)}
+              key={cat.value}
+              className={`filter-btn ${filterCategory === cat.value ? 'active' : ''}`}
+              onClick={() => setFilterCategory(cat.value)}
             >
-              {cat}
+              {cat.label}
             </button>
           ))}
         </div>
       </div>
 
+      {/* TABLA */}
       <div className="products-table-container">
         <table className="products-table">
           <thead>
             <tr>
-              <th>Producto</th>
-              <th>Categoría</th>
-              <th>Precio</th>
-              <th>Stock</th>
-              <th>Estado</th>
-              <th>Acciones</th>
+              <th>NOMBRE</th>
+              <th>CATEGORÍA</th>
+              <th>PRECIO</th>
+              <th>STOCK</th>
+              <th>DESCRIPCIÓN</th>
+              <th>ACCIONES</th>
             </tr>
           </thead>
+
           <tbody>
             {filteredProducts.map(product => (
               <tr key={product.id}>
-                <td>
-                  <div className="product-cell">
-                    <span className="product-image">{product.image}</span>
-                    <span className="product-name">{product.name}</span>
-                  </div>
-                </td>
-                <td>
-                  <span className="category-badge">{product.category}</span>
-                </td>
-                <td className="price-cell">${product.price.toFixed(2)}</td>
-                <td>
-                  <span className={`stock-badge ${product.stock < 10 ? 'low' : ''} ${product.stock === 0 ? 'out' : ''}`}>
-                    {product.stock} unidades
-                  </span>
-                </td>
+                <td>{product.nombre}</td>
+                <td>{product.categoria}</td>
+                <td>${product.precio}</td>
+                <td>{product.stock}</td>
+                <td>{product.descripcion}</td>
+
                 <td>
                   <button
-                    className={`status-toggle ${product.status}`}
-                    onClick={() => handleToggleStatus(product.id)}
+                    className="action-btn edit"
+                    onClick={() => handleOpenModal(product)}
                   >
-                    {product.status === 'active' ? '✓ Activo' : '✕ Inactivo'}
+                    ✏️
                   </button>
-                </td>
-                <td>
-                  <div className="action-buttons">
-                    <button
-                      className="action-btn edit"
-                      onClick={() => handleOpenModal(product)}
-                      title="Editar"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      className="action-btn delete"
-                      onClick={() => handleDelete(product.id)}
-                      title="Eliminar"
-                    >
-                      🗑️
-                    </button>
-                  </div>
+
+                  <button
+                    className="action-btn delete"
+                    onClick={() => handleDelete(product.id)}
+                  >
+                    🗑️
+                  </button>
                 </td>
               </tr>
             ))}
@@ -279,78 +265,81 @@ const Products = () => {
           <div className="empty-state">
             <div className="empty-icon">📦</div>
             <h3>No se encontraron productos</h3>
-            <p>Intenta ajustar los filtros o agrega un nuevo producto</p>
+            <p>Intenta cambiar los filtros o agregar un nuevo producto</p>
           </div>
         )}
       </div>
 
+      {/* MODAL */}
       {showModal && (
         <div className="modal-overlay" onClick={handleCloseModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+
             <div className="modal-header">
               <h2>{editingProduct ? 'Editar Producto' : 'Nuevo Producto'}</h2>
               <button className="modal-close" onClick={handleCloseModal}>✕</button>
             </div>
+
             <form onSubmit={handleSubmit} className="product-form">
+
               <div className="form-group">
-                <label>Nombre del Producto</label>
+                <label>Nombre</label>
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Ej: Hamburguesa Clásica"
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   required
                 />
               </div>
 
               <div className="form-row">
+
                 <div className="form-group">
                   <label>Categoría</label>
                   <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    value={formData.categoria}
+                    onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
                   >
                     {categories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
+                      <option key={cat.value} value={cat.value}>{cat.label}</option>
                     ))}
                   </select>
                 </div>
 
                 <div className="form-group">
-                  <label>Emoji/Icono</label>
+                  <label>Descripción</label>
                   <input
                     type="text"
-                    value={formData.image}
-                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                    placeholder="🍔"
-                    maxLength="2"
+                    value={formData.descripcion}
+                    onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                   />
                 </div>
+
               </div>
 
               <div className="form-row">
+
                 <div className="form-group">
-                  <label>Precio ($)</label>
+                  <label>Precio</label>
                   <input
                     type="number"
                     step="0.01"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    placeholder="0.00"
+                    value={formData.precio}
+                    onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
                     required
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Stock (unidades)</label>
+                  <label>Stock</label>
                   <input
                     type="number"
                     value={formData.stock}
                     onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                    placeholder="0"
                     required
                   />
                 </div>
+
               </div>
 
               <div className="form-actions">
@@ -361,10 +350,13 @@ const Products = () => {
                   {editingProduct ? 'Guardar Cambios' : 'Crear Producto'}
                 </button>
               </div>
+
             </form>
+
           </div>
         </div>
       )}
+
     </div>
   );
 };
