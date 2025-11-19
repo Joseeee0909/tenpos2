@@ -1,4 +1,4 @@
-import productModel from "../models/product.model";
+import productModel from "../models/product.model.js";
 class Producto {
     constructor(nombre, precio, descripcion, categoria, stock = true) {
         this.nombre = nombre;

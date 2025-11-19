@@ -4,6 +4,7 @@ import { useContext } from 'react';
 import Register from './pages/register.jsx';
 import Login from './pages/login.jsx';
 import RolesPage from './pages/roles.jsx';
+import ProductsPage from './pages/product.jsx';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import NavBar from './components/NavBar';
@@ -27,6 +28,14 @@ function RoutesWrapper() {
     <Routes>
       <Route path="/" element={<Navigate to="/admin/register" replace />} />
       <Route path="/login" element={<Login />} />
+      <Route
+        path="/products"
+        element={
+          <ProtectedRoute>
+            <ProductsPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/admin/register"
         element={

@@ -1,10 +1,10 @@
-// ============================================
-// ProductsCRUD.jsx
-// ============================================
 
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useContext } from 'react';
 import { Search, Plus, Edit2, Trash2, X, Save, RefreshCw, AlertCircle } from 'lucide-react';
-import './ProductsCRUD.css';
+import authService from '../services/api.js';
+import { AuthContext } from '../context/AuthContext';
+import '../styles/product.css';
 
 export default function ProductsCRUD() {
   const [products, setProducts] = useState([]);
@@ -22,8 +22,9 @@ export default function ProductsCRUD() {
     stock: ''
   });
 
-  // Configuración del backend - Cambia esta URL por la de tu API
-  const API_URL = 'https://api.example.com/products';
+  // Usaremos axios instance desde authService; baseURL ya apunta a /api
+  const axios = authService.axios;
+  const { user } = useContext(AuthContext) || {};
 
   useEffect(() => {
     fetchProducts();
@@ -34,28 +35,23 @@ export default function ProductsCRUD() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(API_URL, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al cargar productos');
-      }
-
-      const data = await response.json();
-      setProducts(data);
+      const res = await axios.get('/products');
+      // backend returns { productos: [...] }
+      const data = res.data.productos || [];
+      // map backend fields to frontend-friendly shape
+      setProducts(data.map(p => ({
+        id: p._id || p.id,
+        code: p._id || p.code,
+        name: p.nombre,
+        category: p.categoria,
+        price: p.precio,
+        stock: p.stock,
+        descripcion: p.descripcion
+      })));
     } catch (err) {
       console.error('Error fetching products:', err);
       setError('No se pudieron cargar los productos. Usando datos de ejemplo.');
-      setProducts([
-        { id: 1, code: 'P001', name: 'Laptop HP', category: 'Electrónica', price: 850.00, stock: 15 },
-        { id: 2, code: 'P002', name: 'Mouse Logitech', category: 'Accesorios', price: 25.99, stock: 50 },
-        { id: 3, code: 'P003', name: 'Teclado Mecánico', category: 'Accesorios', price: 89.99, stock: 30 },
-        { id: 4, code: 'P004', name: 'Monitor Samsung 24"', category: 'Electrónica', price: 199.99, stock: 20 }
-      ]);
+    
     } finally {
       setLoading(false);
     }
@@ -66,20 +62,26 @@ export default function ProductsCRUD() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(productData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al crear producto');
-      }
-
-      const newProduct = await response.json();
-      setProducts([...products, newProduct]);
+      // payload uses backend field names
+      const payload = {
+        nombre: productData.name,
+        precio: productData.price,
+        descripcion: productData.description || productData.name,
+        categoria: productData.category,
+        stock: productData.stock
+      };
+      const res = await axios.post('/products', payload);
+      const newProduct = res.data.producto || res.data;
+      const mapped = {
+        id: newProduct._id || newProduct.id,
+        code: newProduct._id || newProduct.code,
+        name: newProduct.nombre,
+        category: newProduct.categoria,
+        price: newProduct.precio,
+        stock: newProduct.stock,
+        descripcion: newProduct.descripcion
+      };
+      setProducts([...products, mapped]);
       return true;
     } catch (err) {
       console.error('Error creating product:', err);
@@ -100,20 +102,25 @@ export default function ProductsCRUD() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(productData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al actualizar producto');
-      }
-
-      const updatedProduct = await response.json();
-      setProducts(products.map(p => p.id === id ? updatedProduct : p));
+      const payload = {
+        nombre: productData.name,
+        precio: productData.price,
+        descripcion: productData.description || productData.name,
+        categoria: productData.category,
+        stock: productData.stock
+      };
+      const res = await axios.put(`/products/${id}`, payload);
+      const updatedProduct = res.data.producto || res.data;
+      const mapped = {
+        id: updatedProduct._id || updatedProduct.id,
+        code: updatedProduct._id || updatedProduct.code,
+        name: updatedProduct.nombre,
+        category: updatedProduct.categoria,
+        price: updatedProduct.precio,
+        stock: updatedProduct.stock,
+        descripcion: updatedProduct.descripcion
+      };
+      setProducts(products.map(p => p.id === id ? mapped : p));
       return true;
     } catch (err) {
       console.error('Error updating product:', err);
@@ -130,17 +137,7 @@ export default function ProductsCRUD() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al eliminar producto');
-      }
-
+      await axios.delete(`/products/${id}`);
       setProducts(products.filter(p => p.id !== id));
       return true;
     } catch (err) {
@@ -253,7 +250,7 @@ export default function ProductsCRUD() {
             </div>
           )}
           
-          <div className="header-actions">
+            <div className="header-actions">
             {/* Search Bar */}
             <div className="search-container">
               <Search className="search-icon" size={20} />
@@ -266,15 +263,17 @@ export default function ProductsCRUD() {
               />
             </div>
 
-            {/* Create Button */}
-            <button
-              onClick={openCreateModal}
-              disabled={loading}
-              className="btn btn-primary"
-            >
-              <Plus size={20} />
-              Nuevo Producto
-            </button>
+            {/* Create Button - only for admins */}
+            {user && ['administrador','admin','root'].includes(user.rol) && (
+              <button
+                onClick={openCreateModal}
+                disabled={loading}
+                className="btn btn-primary"
+              >
+                <Plus size={20} />
+                Nuevo Producto
+              </button>
+            )}
           </div>
         </div>
 
@@ -329,22 +328,28 @@ export default function ProductsCRUD() {
                     </td>
                     <td>
                       <div className="actions-buttons">
-                        <button
-                          onClick={() => openEditModal(product)}
-                          disabled={loading}
-                          className="btn-icon btn-edit"
-                          title="Editar"
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(product.id)}
-                          disabled={loading}
-                          className="btn-icon btn-delete"
-                          title="Eliminar"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        {user && ['administrador','admin','root'].includes(user.rol) ? (
+                          <>
+                            <button
+                              onClick={() => openEditModal(product)}
+                              disabled={loading}
+                              className="btn-icon btn-edit"
+                              title="Editar"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(product.id)}
+                              disabled={loading}
+                              className="btn-icon btn-delete"
+                              title="Eliminar"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </>
+                        ) : (
+                          <span style={{opacity: 0.6}}>No autorizado</span>
+                        )}
                       </div>
                     </td>
                   </tr>
