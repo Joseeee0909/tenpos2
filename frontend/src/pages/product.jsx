@@ -1,486 +1,390 @@
 
 
-import React, { useState, useEffect, useContext } from 'react';
-import { Search, Plus, Edit2, Trash2, X, Save, RefreshCw, AlertCircle } from 'lucide-react';
-import authService from '../services/api.js';
-import { AuthContext } from '../context/AuthContext';
-import '../styles/product.css';
+import React, { useState } from 'react';
+import './Products.css';
 
-export default function ProductsCRUD() {
-  const [products, setProducts] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+const Products = () => {
+  const [products, setProducts] = useState([
+    {
+      id: 1,
+      name: 'Hamburguesa Clásica',
+      category: 'Comida',
+      price: 12.99,
+      stock: 45,
+      image: '🍔',
+      status: 'active'
+    },
+    {
+      id: 2,
+      name: 'Pizza Margherita',
+      category: 'Comida',
+      price: 15.99,
+      stock: 30,
+      image: '🍕',
+      status: 'active'
+    },
+    {
+      id: 3,
+      name: 'Coca Cola',
+      category: 'Bebida',
+      price: 2.99,
+      stock: 120,
+      image: '🥤',
+      status: 'active'
+    },
+    {
+      id: 4,
+      name: 'Cerveza Artesanal',
+      category: 'Bebida',
+      price: 5.99,
+      stock: 8,
+      image: '🍺',
+      status: 'active'
+    },
+    {
+      id: 5,
+      name: 'Ensalada César',
+      category: 'Comida',
+      price: 9.99,
+      stock: 25,
+      image: '🥗',
+      status: 'active'
+    },
+    {
+      id: 6,
+      name: 'Tacos al Pastor',
+      category: 'Comida',
+      price: 8.99,
+      stock: 0,
+      image: '🌮',
+      status: 'inactive'
+    }
+  ]);
+
   const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState('create');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [currentProduct, setCurrentProduct] = useState({
-    id: null,
-    code: '',
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [formData, setFormData] = useState({
     name: '',
-    category: '',
+    category: 'Comida',
     price: '',
-    stock: ''
+    stock: '',
+    image: '🍽️'
   });
 
-  // Usaremos axios instance desde authService; baseURL ya apunta a /api
-  const axios = authService.axios;
-  const { user } = useContext(AuthContext) || {};
+  const categories = ['Comida', 'Bebida', 'Postre', 'Entrada'];
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  // GET - Obtener todos los productos
-  const fetchProducts = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await axios.get('/products');
-      // backend returns { productos: [...] }
-      const data = res.data.productos || [];
-      // map backend fields to frontend-friendly shape
-      setProducts(data.map(p => ({
-        id: p._id || p.id,
-        code: p._id || p.code,
-        name: p.nombre,
-        category: p.categoria,
-        price: p.precio,
-        stock: p.stock,
-        descripcion: p.descripcion
-      })));
-    } catch (err) {
-      console.error('Error fetching products:', err);
-      setError('No se pudieron cargar los productos. Usando datos de ejemplo.');
-    
-    } finally {
-      setLoading(false);
+  const handleOpenModal = (product = null) => {
+    if (product) {
+      setEditingProduct(product);
+      setFormData({
+        name: product.name,
+        category: product.category,
+        price: product.price,
+        stock: product.stock,
+        image: product.image
+      });
+    } else {
+      setEditingProduct(null);
+      setFormData({
+        name: '',
+        category: 'Comida',
+        price: '',
+        stock: '',
+        image: '🍽️'
+      });
     }
+    setShowModal(true);
   };
 
-  // POST - Crear nuevo producto
-  const createProduct = async (productData) => {
-    setLoading(true);
-    setError(null);
-    try {
-      // payload uses backend field names
-      const payload = {
-        nombre: productData.name,
-        precio: productData.price,
-        descripcion: productData.description || productData.name,
-        categoria: productData.category,
-        stock: productData.stock
-      };
-      const res = await axios.post('/products', payload);
-      const newProduct = res.data.producto || res.data;
-      const mapped = {
-        id: newProduct._id || newProduct.id,
-        code: newProduct._id || newProduct.code,
-        name: newProduct.nombre,
-        category: newProduct.categoria,
-        price: newProduct.precio,
-        stock: newProduct.stock,
-        descripcion: newProduct.descripcion
-      };
-      setProducts([...products, mapped]);
-      return true;
-    } catch (err) {
-      console.error('Error creating product:', err);
-      setError('Error al crear el producto');
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingProduct(null);
+    setFormData({
+      name: '',
+      category: 'Comida',
+      price: '',
+      stock: '',
+      image: '🍽️'
+    });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (editingProduct) {
+      setProducts(products.map(p => 
+        p.id === editingProduct.id 
+          ? { ...p, ...formData, price: parseFloat(formData.price), stock: parseInt(formData.stock) }
+          : p
+      ));
+    } else {
       const newProduct = {
-        ...productData,
-        id: products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1
+        id: products.length + 1,
+        ...formData,
+        price: parseFloat(formData.price),
+        stock: parseInt(formData.stock),
+        status: parseInt(formData.stock) > 0 ? 'active' : 'inactive'
       };
       setProducts([...products, newProduct]);
-      return true;
-    } finally {
-      setLoading(false);
     }
+    
+    handleCloseModal();
   };
 
-  // PUT - Actualizar producto existente
-  const updateProduct = async (id, productData) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const payload = {
-        nombre: productData.name,
-        precio: productData.price,
-        descripcion: productData.description || productData.name,
-        categoria: productData.category,
-        stock: productData.stock
-      };
-      const res = await axios.put(`/products/${id}`, payload);
-      const updatedProduct = res.data.producto || res.data;
-      const mapped = {
-        id: updatedProduct._id || updatedProduct.id,
-        code: updatedProduct._id || updatedProduct.code,
-        name: updatedProduct.nombre,
-        category: updatedProduct.categoria,
-        price: updatedProduct.precio,
-        stock: updatedProduct.stock,
-        descripcion: updatedProduct.descripcion
-      };
-      setProducts(products.map(p => p.id === id ? mapped : p));
-      return true;
-    } catch (err) {
-      console.error('Error updating product:', err);
-      setError('Error al actualizar el producto');
-      setProducts(products.map(p => p.id === id ? { ...productData, id } : p));
-      return true;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // DELETE - Eliminar producto
-  const deleteProduct = async (id) => {
-    setLoading(true);
-    setError(null);
-    try {
-      await axios.delete(`/products/${id}`);
+  const handleDelete = (id) => {
+    if (window.confirm('¿Estás seguro de eliminar este producto?')) {
       setProducts(products.filter(p => p.id !== id));
-      return true;
-    } catch (err) {
-      console.error('Error deleting product:', err);
-      setError('Error al eliminar el producto');
-      setProducts(products.filter(p => p.id !== id));
-      return true;
-    } finally {
-      setLoading(false);
     }
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const openCreateModal = () => {
-    setModalMode('create');
-    setCurrentProduct({
-      id: null,
-      code: '',
-      name: '',
-      category: '',
-      price: '',
-      stock: ''
-    });
-    setShowModal(true);
+  const handleToggleStatus = (id) => {
+    setProducts(products.map(p => 
+      p.id === id 
+        ? { ...p, status: p.status === 'active' ? 'inactive' : 'active' }
+        : p
+    ));
   };
 
-  const openEditModal = (product) => {
-    setModalMode('edit');
-    setCurrentProduct({ ...product });
-    setShowModal(true);
-  };
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
+    return matchesSearch && matchesCategory;
+  });
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setCurrentProduct(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSave = async () => {
-    if (!currentProduct.code || !currentProduct.name || !currentProduct.category || 
-        !currentProduct.price || !currentProduct.stock) {
-      alert('Por favor complete todos los campos');
-      return;
-    }
-
-    const productData = {
-      code: currentProduct.code,
-      name: currentProduct.name,
-      category: currentProduct.category,
-      price: parseFloat(currentProduct.price),
-      stock: parseInt(currentProduct.stock)
-    };
-
-    let success = false;
-    if (modalMode === 'create') {
-      success = await createProduct(productData);
-    } else {
-      success = await updateProduct(currentProduct.id, productData);
-    }
-
-    if (success) {
-      setShowModal(false);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm('¿Está seguro de eliminar este producto?')) {
-      await deleteProduct(id);
-    }
-  };
+  const totalProducts = products.length;
+  const activeProducts = products.filter(p => p.status === 'active').length;
+  const lowStockProducts = products.filter(p => p.stock < 10 && p.stock > 0).length;
+  const outOfStockProducts = products.filter(p => p.stock === 0).length;
 
   return (
-    <div className="pos-container">
-      <div className="pos-wrapper">
-        {/* Header */}
-        <div className="pos-header">
-          <div className="header-top">
-            <h1 className="header-title">Sistema POS - Gestión de Productos</h1>
-            <button
-              onClick={fetchProducts}
-              disabled={loading}
-              className="btn btn-reload"
-              title="Recargar productos"
-            >
-              <RefreshCw size={18} className={loading ? 'spin' : ''} />
-              Recargar
-            </button>
-          </div>
+    <div className="products-container">
+      <div className="products-header">
+        <div className="header-content">
+          <h1>Gestión de Productos</h1>
+          <p>Administra el catálogo completo de productos del restaurante</p>
+        </div>
+        <button className="btn-primary" onClick={() => handleOpenModal()}>
+          <span className="btn-icon">➕</span>
+          Nuevo Producto
+        </button>
+      </div>
 
-          {/* Error Alert */}
-          {error && (
-            <div className="alert alert-warning">
-              <AlertCircle className="alert-icon" size={20} />
-              <div className="alert-content">
-                <p className="alert-text">{error}</p>
-                <p className="alert-subtext">
-                  Configura el API_URL en el código para conectar con tu backend
-                </p>
-              </div>
-              <button onClick={() => setError(null)} className="alert-close">
-                <X size={18} />
-              </button>
-            </div>
-          )}
-          
-            <div className="header-actions">
-            {/* Search Bar */}
-            <div className="search-container">
-              <Search className="search-icon" size={20} />
-              <input
-                type="text"
-                placeholder="Buscar productos por nombre, código o categoría..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="search-input"
-              />
-            </div>
-
-            {/* Create Button - only for admins */}
-            {user && ['administrador','admin','root'].includes(user.rol) && (
-              <button
-                onClick={openCreateModal}
-                disabled={loading}
-                className="btn btn-primary"
-              >
-                <Plus size={20} />
-                Nuevo Producto
-              </button>
-            )}
+      <div className="stats-grid">
+        <div className="stat-box blue">
+          <div className="stat-icon">📦</div>
+          <div className="stat-info">
+            <div className="stat-number">{totalProducts}</div>
+            <div className="stat-text">Total Productos</div>
           </div>
         </div>
-
-        {/* Products Table */}
-        <div className="table-container">
-          <table className="products-table">
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Nombre</th>
-                <th>Categoría</th>
-                <th className="text-right">Precio</th>
-                <th className="text-right">Stock</th>
-                <th className="text-center">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && products.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="loading-cell">
-                    <RefreshCw className="spin loading-spinner" size={24} />
-                    <p>Cargando productos...</p>
-                  </td>
-                </tr>
-              ) : filteredProducts.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="empty-cell">
-                    No se encontraron productos
-                  </td>
-                </tr>
-              ) : (
-                filteredProducts.map((product) => (
-                  <tr key={product.id}>
-                    <td className="font-medium">{product.code}</td>
-                    <td>{product.name}</td>
-                    <td>
-                      <span className="badge badge-category">
-                        {product.category}
-                      </span>
-                    </td>
-                    <td className="text-right font-semibold">
-                      ${typeof product.price === 'number' ? product.price.toFixed(2) : product.price}
-                    </td>
-                    <td className="text-right">
-                      <span className={`badge badge-stock ${
-                        product.stock > 20 ? 'badge-stock-high' :
-                        product.stock > 10 ? 'badge-stock-medium' :
-                        'badge-stock-low'
-                      }`}>
-                        {product.stock}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="actions-buttons">
-                        {user && ['administrador','admin','root'].includes(user.rol) ? (
-                          <>
-                            <button
-                              onClick={() => openEditModal(product)}
-                              disabled={loading}
-                              className="btn-icon btn-edit"
-                              title="Editar"
-                            >
-                              <Edit2 size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(product.id)}
-                              disabled={loading}
-                              className="btn-icon btn-delete"
-                              title="Eliminar"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </>
-                        ) : (
-                          <span style={{opacity: 0.6}}>No autorizado</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="stat-box green">
+          <div className="stat-icon">✅</div>
+          <div className="stat-info">
+            <div className="stat-number">{activeProducts}</div>
+            <div className="stat-text">Activos</div>
+          </div>
         </div>
-
-        {/* Total Products */}
-        <div className="products-count">
-          Total de productos: <span className="count-number">{filteredProducts.length}</span>
+        <div className="stat-box orange">
+          <div className="stat-icon">⚠️</div>
+          <div className="stat-info">
+            <div className="stat-number">{lowStockProducts}</div>
+            <div className="stat-text">Stock Bajo</div>
+          </div>
+        </div>
+        <div className="stat-box red">
+          <div className="stat-icon">❌</div>
+          <div className="stat-info">
+            <div className="stat-number">{outOfStockProducts}</div>
+            <div className="stat-text">Sin Stock</div>
+          </div>
         </div>
       </div>
 
-      {/* Modal */}
+      <div className="filters-section">
+        <div className="search-box">
+          <span className="search-icon">🔍</span>
+          <input
+            type="text"
+            placeholder="Buscar productos..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-input"
+          />
+        </div>
+        <div className="filter-buttons">
+          <button
+            className={`filter-btn ${filterCategory === 'all' ? 'active' : ''}`}
+            onClick={() => setFilterCategory('all')}
+          >
+            Todos
+          </button>
+          {categories.map(cat => (
+            <button
+              key={cat}
+              className={`filter-btn ${filterCategory === cat ? 'active' : ''}`}
+              onClick={() => setFilterCategory(cat)}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="products-table-container">
+        <table className="products-table">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Categoría</th>
+              <th>Precio</th>
+              <th>Stock</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProducts.map(product => (
+              <tr key={product.id}>
+                <td>
+                  <div className="product-cell">
+                    <span className="product-image">{product.image}</span>
+                    <span className="product-name">{product.name}</span>
+                  </div>
+                </td>
+                <td>
+                  <span className="category-badge">{product.category}</span>
+                </td>
+                <td className="price-cell">${product.price.toFixed(2)}</td>
+                <td>
+                  <span className={`stock-badge ${product.stock < 10 ? 'low' : ''} ${product.stock === 0 ? 'out' : ''}`}>
+                    {product.stock} unidades
+                  </span>
+                </td>
+                <td>
+                  <button
+                    className={`status-toggle ${product.status}`}
+                    onClick={() => handleToggleStatus(product.id)}
+                  >
+                    {product.status === 'active' ? '✓ Activo' : '✕ Inactivo'}
+                  </button>
+                </td>
+                <td>
+                  <div className="action-buttons">
+                    <button
+                      className="action-btn edit"
+                      onClick={() => handleOpenModal(product)}
+                      title="Editar"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      className="action-btn delete"
+                      onClick={() => handleDelete(product.id)}
+                      title="Eliminar"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {filteredProducts.length === 0 && (
+          <div className="empty-state">
+            <div className="empty-icon">📦</div>
+            <h3>No se encontraron productos</h3>
+            <p>Intenta ajustar los filtros o agrega un nuevo producto</p>
+          </div>
+        )}
+      </div>
+
       {showModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            {/* Modal Header */}
+        <div className="modal-overlay" onClick={handleCloseModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2 className="modal-title">
-                {modalMode === 'create' ? 'Crear Producto' : 'Editar Producto'}
-              </h2>
-              <button
-                onClick={() => setShowModal(false)}
-                disabled={loading}
-                className="modal-close"
-              >
-                <X size={24} />
-              </button>
+              <h2>{editingProduct ? 'Editar Producto' : 'Nuevo Producto'}</h2>
+              <button className="modal-close" onClick={handleCloseModal}>✕</button>
             </div>
-
-            {/* Modal Body */}
-            <div className="modal-body">
+            <form onSubmit={handleSubmit} className="product-form">
               <div className="form-group">
-                <label className="form-label">Código *</label>
+                <label>Nombre del Producto</label>
                 <input
                   type="text"
-                  name="code"
-                  value={currentProduct.code}
-                  onChange={handleInputChange}
-                  disabled={loading}
-                  className="form-input"
-                  placeholder="Ej: P001"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Nombre *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={currentProduct.name}
-                  onChange={handleInputChange}
-                  disabled={loading}
-                  className="form-input"
-                  placeholder="Nombre del producto"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Categoría *</label>
-                <input
-                  type="text"
-                  name="category"
-                  value={currentProduct.category}
-                  onChange={handleInputChange}
-                  disabled={loading}
-                  className="form-input"
-                  placeholder="Ej: Electrónica"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Ej: Hamburguesa Clásica"
+                  required
                 />
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Precio *</label>
+                  <label>Categoría</label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  >
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Emoji/Icono</label>
+                  <input
+                    type="text"
+                    value={formData.image}
+                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                    placeholder="🍔"
+                    maxLength="2"
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Precio ($)</label>
                   <input
                     type="number"
-                    name="price"
-                    value={currentProduct.price}
-                    onChange={handleInputChange}
-                    disabled={loading}
                     step="0.01"
-                    min="0"
-                    className="form-input"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     placeholder="0.00"
+                    required
                   />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Stock *</label>
+                  <label>Stock (unidades)</label>
                   <input
                     type="number"
-                    name="stock"
-                    value={currentProduct.stock}
-                    onChange={handleInputChange}
-                    disabled={loading}
-                    min="0"
-                    className="form-input"
+                    value={formData.stock}
+                    onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                     placeholder="0"
+                    required
                   />
                 </div>
               </div>
-            </div>
 
-            {/* Modal Footer */}
-            <div className="modal-footer">
-              <button
-                onClick={() => setShowModal(false)}
-                disabled={loading}
-                className="btn btn-secondary"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={loading}
-                className="btn btn-primary"
-              >
-                {loading ? (
-                  <RefreshCw size={18} className="spin" />
-                ) : (
-                  <Save size={18} />
-                )}
-                {modalMode === 'create' ? 'Crear' : 'Actualizar'}
-              </button>
-            </div>
+              <div className="form-actions">
+                <button type="button" className="btn-secondary" onClick={handleCloseModal}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn-primary">
+                  {editingProduct ? 'Guardar Cambios' : 'Crear Producto'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
     </div>
   );
-}
+};
+
+export default Products;
