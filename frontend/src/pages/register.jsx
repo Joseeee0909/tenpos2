@@ -6,6 +6,7 @@ import '../styles/register.css';
 
 export default function Register() {
   const [formData, setFormData] = useState({
+    idusuario: '',
     nombre: '',
     username: '',
     password: '',
@@ -49,6 +50,9 @@ export default function Register() {
 
   const validateForm = () => {
     const newErrors = {};
+     if (!formData.idusuario.trim()) {
+      newErrors.idusuario = 'El id es requerido';
+    }
 
     if (!formData.nombre.trim()) {
       newErrors.nombre = 'El nombre es requerido';
@@ -94,6 +98,7 @@ export default function Register() {
 
         // Limpiar form
         setFormData({
+          idusuario: '',
           nombre: '',
           username: '',
           password: '',
@@ -127,7 +132,7 @@ export default function Register() {
       <div className="form-container">
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
           <div className="header">
-            <div className="header-icon">🛡️</div>
+            <div className="header-icon"></div>
             <h1>Registro de Usuario</h1>
             <p>Complete el formulario para crear una cuenta</p>
           </div>
@@ -150,9 +155,25 @@ export default function Register() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
+            <label htmlFor="id">ID Usuario</label>
+            <div className="input-wrapper">
+              <span className="input-icon"></span>
+              <input
+                type="text"
+                id="idusuario"
+                name="idusuario"
+                value={formData.idusuario}
+                onChange={handleChange}
+                className={`form-input ${errors.idusuario ? 'error' : ''}`}
+                placeholder="Id-12345"
+              />
+            </div>
+            {errors.nombre && <div className="error-message">{errors.nombre}</div>}
+          </div>
+          <div className="form-group">
             <label htmlFor="nombre">Nombre Completo</label>
             <div className="input-wrapper">
-              <span className="input-icon">👤</span>
+              <span className="input-icon"></span>
               <input
                 type="text"
                 id="nombre"
@@ -169,7 +190,7 @@ export default function Register() {
           <div className="form-group">
             <label htmlFor="username">Nombre de Usuario</label>
             <div className="input-wrapper">
-              <span className="input-icon">👨‍💼</span>
+              <span className="input-icon"></span>
               <input
                 type="text"
                 id="username"
@@ -186,7 +207,7 @@ export default function Register() {
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <div className="input-wrapper">
-              <span className="input-icon">✉️</span>
+              <span className="input-icon"></span>
               <input
                 type="email"
                 id="email"
@@ -203,7 +224,7 @@ export default function Register() {
           <div className="form-group">
             <label htmlFor="password">Contraseña</label>
             <div className="input-wrapper">
-              <span className="input-icon">🔒</span>
+              <span className="input-icon"></span>
               <input
                 type="password"
                 id="password"

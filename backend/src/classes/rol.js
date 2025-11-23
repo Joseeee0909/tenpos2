@@ -2,12 +2,14 @@ import RolModel from "../models/rol.model.js";
 
 class Rol {
   constructor(nombre, descripcion) {
+    this.idrol = idrol;
     this.nombre = nombre;
     this.descripcion = descripcion;
   }
 
   async guardar() {
     const rol = new RolModel({
+      idrol: this.idrol,
       nombre: this.nombre,
       descripcion: this.descripcion
     });

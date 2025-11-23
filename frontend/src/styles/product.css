@@ -1,6 +1,6 @@
 .products-container {
   padding: 0;
-  max-width: 100%;
+  max-width: 90%;
 }
 
 /* Header Section */
@@ -8,7 +8,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  margin-top: 80px;
+  margin-bottom: 40px;
   flex-wrap: wrap;
   gap: 20px;
 }
@@ -319,6 +320,23 @@
 .product-name {
   font-weight: 600;
 }
+/* Hace que la tabla sea scrollable y el header quede fijo arriba */
+.products-table-container {
+  max-height: 70vh;      /* Ajusta según tu gusto */
+  overflow-y: auto;      /* Scroll vertical */
+  margin-top: 20px;
+  border-radius: 10px;
+  background: white;
+}
+
+/* Mantiene la cabecera fija */
+.products-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f3f3f3;
+  z-index: 2;
+}
+
 .stock-badge {
   padding: 6px 12px;
   border-radius: 6px;

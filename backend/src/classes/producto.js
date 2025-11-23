@@ -1,7 +1,8 @@
 import productModel from "../models/product.model.js";
 
 class Producto {
-    constructor(nombre, precio, descripcion, categoria, stock = 0, disponible = true) {
+    constructor(idproducto,nombre, precio, descripcion, categoria, stock = 0, disponible = true) {
+        this.idproducto = idproducto;
         this.nombre = nombre;
         this.precio = precio;
         this.descripcion = descripcion;
@@ -33,6 +34,7 @@ class Producto {
 
     async guardar() {
         const nuevoProducto = new productModel({
+            idproducto: this.id,
             nombre: this.nombre,
             precio: this.precio,
             descripcion: this.descripcion,

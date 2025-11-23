@@ -102,7 +102,7 @@ body {
   display: block;
   font-size: 14px;
   font-weight: 600;
-  color: #2d3748;
+  color: #000000;
   margin-bottom: 8px;
 }
 
@@ -127,6 +127,7 @@ body {
   font-size: 15px;
   transition: all 0.3s ease;
   outline: none;
+  color: #000;
 }
 
 .form-input:focus {

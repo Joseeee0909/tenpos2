@@ -1,7 +1,11 @@
-import { Router } from 'express';
-const router = Router();
-import UserController from '../controllers/user.controller.js';
+import express from "express";
+import usuarioController from "../controllers/user.controller.js";
 
-router.get('/login/usuario', UserController.listarUsuarios);
+const router = express.Router();
+
+router.get("/", usuarioController.listarUsuarios);
+router.put("/:id", usuarioController.actualizar);
+router.put("/desactivar/:id", usuarioController.desactivarUsuario);
+router.put("/activar/:id", usuarioController.activarUsuario);
 
 export default router;

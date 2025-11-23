@@ -1,82 +1,138 @@
-// axiosConfig.js
-import axios from 'axios';
+// api.js
+import axios from "axios";
 
-// URL base de tu backend
-const API_URL = 'http://localhost:3000/api';
+const API_URL = "http://localhost:3000/api";
 
-const axiosInstance = axios.create({
+const api = axios.create({
   baseURL: API_URL,
-  timeout: 10000, // 10 segundos
-  headers: {
-    'Content-Type': 'application/json',
-  }
+  timeout: 10000,
+  headers: { "Content-Type": "application/json" }
 });
 
-axiosInstance.interceptors.request.use(
+// 🔐 Añadir token automáticamente
+api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    const token = localStorage.getItem("token");
+    if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Interceptor para manejar respuestas y errores
-axiosInstance.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('usuario');
-      // Solo redirigir si no estamos ya en login
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+// ❗ Manejo automático de expiración de sesión
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
       }
     }
-    return Promise.reject(error);
+    return Promise.reject(err);
   }
 );
-const login = async (username, password) => {
-  const response = await axiosInstance.post('/login', { username, password });
-  return response.data;
+
+/* ---------------------------------------------------
+   🔹 USUARIOS - CRUD COMPLETO
+--------------------------------------------------- */
+
+// Obtener usuarios
+const getUsers = async () => {
+  const res = await api.get("/usuarios");
+  return res.data
 };
 
-const saveUser = (usuario) => {
-  try {
-    localStorage.setItem('usuario', JSON.stringify(usuario));
-  } catch (e) {
-    console.warn('No se pudo guardar usuario en localStorage', e);
-  }
-};
-
-const register = async ({ nombre, username, password, email, rol }) => {
-  // El backend espera { username, email, password, rol }
+// Crear usuario
+const createUser = async ({ nombre, username, email, password, rol }) => {
   const payload = { nombre, username, email, password, rol };
-  const response = await axiosInstance.post('/register', payload);
-  return response.data;
+  const res = await api.post("/usuarios", payload);
+  return res.data;
 };
 
+// Actualizar usuario
+const updateUser = async (id, data) => {
+  const res = await api.put(`/usuarios/${id}`, data);
+  return res.data;
+};
+
+const deactivateUser = async (id) => {
+  const res = await api.put(`/usuarios/desactivar/${id}`);
+  return res.data;
+};
+
+const activateUser = async (id) => {
+  const res = await api.put(`/usuarios/activar/${id}`);
+  return res.data;
+};
+
+
+/* ---------------------------------------------------
+   🔹 ROLES
+--------------------------------------------------- */
 const getRoles = async () => {
-  const response = await axiosInstance.get('/roles');
-  return response.data.roles || [];
+  const res = await api.get("/roles");
+  return res.data.roles;
 };
 
 const createRole = async ({ nombre, descripcion }) => {
-  const response = await axiosInstance.post('/roles', { nombre, descripcion });
-  return response.data;
+  const res = await api.post("/roles", { nombre, descripcion });
+  return res.data;
 };
 
+/* ---------------------------------------------------
+   🔹 AUTH
+--------------------------------------------------- */
+const login = async (username, password) => {
+  const res = await api.post("/login", { username, password });
+  return res.data;
+};
+
+const register = async (data) => {
+  const res = await api.post("/register", data);
+  return res.data;
+};
+
+// Guardar datos básicos del usuario logueado
+const saveUser = (usuario) => {
+  try {
+    localStorage.setItem("usuario", JSON.stringify(usuario));
+  } catch (e) {
+    console.warn("Error guardando usuario", e);
+  }
+};
+
+/* ---------------------------------------------------
+   🔹 ESTADÍSTICAS
+--------------------------------------------------- */
+const getProducts = async () => {
+  const res = await api.get("/products");
+  return res.data.productos
+};
+// ?.filter(p => p.disponible !== false).length || 0;
+const getTotalUsers = async () => {
+  const res = await api.get("/usuarios");
+  // Si tu backend devuelve un array directamente
+  return Array.isArray(res.data) ? res.data.length : (res.data.usuarios?.length || 0);
+};
+
+
+/* ---------------------------------------------------
+   🔹 EXPORTAR TODO
+--------------------------------------------------- */
 export default {
-  axios: axiosInstance,
+  api,
   login,
-  saveUser,
   register,
+  saveUser,
+  getUsers,
+  createUser,
+  updateUser,
+  deactivateUser,
+  activateUser,
   getRoles,
   createRole,
+  getProducts,
+  getTotalUsers
 };

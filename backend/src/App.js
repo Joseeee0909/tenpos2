@@ -17,8 +17,8 @@ app.use(cors({
 
 app.disable('x-powered-by')
 app.use('/api' ,authRoutes);
-app.use ('/api', userRoutes);
 app.use('/api/roles', rolRoutes);
+app.use("/api/usuarios", userRoutes);
 app.use('/api/products', productRoutes);
 
 

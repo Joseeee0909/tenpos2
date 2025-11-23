@@ -2,6 +2,8 @@ import React, { useContext } from 'react';
 import { Routes, Route, NavLink, useNavigate, Navigate } from 'react-router-dom';
 import '../styles/menu.css';
 import { AuthContext } from '../context/AuthContext';
+import authService from '../services/api.js';
+
 
   const Sidebar = () => {
     const navigate = useNavigate();
@@ -62,56 +64,83 @@ import { AuthContext } from '../context/AuthContext';
   };
 
   const HomePage = () => {
-    const navigate = useNavigate();
-    const stats = [
-      { value: '0', label: 'Productos Activos', icon: '📦', color: 'blue' },
-      { value: '0', label: 'Usuarios Registrados', icon: '👥', color: 'purple' },
-      { value: '0', label: 'Órdenes Completadas', icon: '✅', color: 'green' },
-      { value: '0', label: 'Calificación Promedio', icon: '⭐', color: 'orange' }
-    ];
+  const [stats, setStats] = React.useState({
+    productos: 0,
+    usuarios: 0
+  });
 
-    const quickActions = [
-      { id: 'productos', icon: '📦', text: 'Ver Productos', route: '/menu/productos' },
-      { id: 'usuarios', icon: '👥', text: 'Gestionar Usuarios', route: '/menu/usuarios' },
-      { id: 'roles', icon: '🔐', text: 'Configurar Roles', route: '/menu/roles' }
-    ];
+  React.useEffect(() => {
+    loadStats();
+  }, []);
 
-    return (
-      <div>
-        <div className="welcome-banner">
-          <h2>¡Bienvenido a TenPos! 👋</h2>
-          <p>Gestiona tu restaurante de manera eficiente y profesional</p>
-        </div>
+  const loadStats = async () => {
+    try {
+      // Traer todos los productos
+      const productosData = await authService.getProducts();
+      const productosActivos = productosData.filter(p => p.disponible !== false).length;
 
-        <div className="home-grid">
-          {stats.map((stat, index) => (
-            <div key={index} className={`stat-card ${stat.color}`}>
-              <div className="stat-icon">{stat.icon}</div>
-              <div className="stat-value">{stat.value}</div>
-              <div className="stat-label">{stat.label}</div>
+      // Traer total de usuarios
+      const totalUsuarios = await authService.getTotalUsers();
+
+      setStats({
+        productos: productosActivos,
+        usuarios: totalUsuarios
+      });
+    } catch (err) {
+      console.error("Error cargando estadísticas:", err);
+    }
+  };
+
+  const dashboardStats = [
+    { value: stats.productos, label: 'Productos Activos', icon: '📦', color: 'blue' },
+    { value: stats.usuarios, label: 'Usuarios Registrados', icon: '👥', color: 'purple' },
+    { value: '0', label: 'Órdenes Completadas', icon: '✅', color: 'green' },
+    { value: '0', label: 'Calificación Promedio', icon: '⭐', color: 'orange' }
+  ];
+
+  const quickActions = [
+    { id: 'productos', icon: '📦', text: 'Ver Productos', route: '/menu/productos' },
+    { id: 'usuarios', icon: '👥', text: 'Gestionar Usuarios', route: '/menu/usuarios' },
+    { id: 'roles', icon: '🔐', text: 'Configurar Roles', route: '/menu/roles' }
+  ];
+
+  return (
+    <div>
+      <div className="welcome-banner">
+        <h2>¡Bienvenido a TenPos! 👋</h2>
+        <p>Gestiona tu restaurante de manera eficiente y profesional</p>
+      </div>
+
+      <div className="home-grid">
+        {dashboardStats.map((stat, index) => (
+          <div key={index} className={`stat-card ${stat.color}`}>
+            <div className="stat-icon">{stat.icon}</div>
+            <div className="stat-value">{stat.value}</div>
+            <div className="stat-label">{stat.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="content-card" style={{ marginTop: '30px' }}>
+        <h3 className="section-title">Acciones Rápidas</h3>
+        <div className="quick-actions">
+          {quickActions.map(action => (
+            <div
+              key={action.id}
+              className="action-btn"
+              style={{ cursor: 'pointer' }}
+              onClick={() => window.location.href = action.route}
+            >
+              <div className="action-btn-icon">{action.icon}</div>
+              <div className="action-btn-text">{action.text}</div>
             </div>
           ))}
         </div>
-
-        <div className="content-card" style={{ marginTop: '30px' }}>
-          <h3 className="section-title">Acciones Rápidas</h3>
-          <div className="quick-actions">
-            {quickActions.map(action => (
-              <div
-                key={action.id}
-                className="action-btn"
-                style={{ cursor: 'pointer' }}
-                onClick={() => navigate(action.route)}
-              >
-                <div className="action-btn-icon">{action.icon}</div>
-                <div className="action-btn-text">{action.text}</div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
+
 
 const ContentPage = ({ page, pageData }) => {
   return (
@@ -132,6 +161,7 @@ const ContentPage = ({ page, pageData }) => {
 import Products from './product.jsx';
 import RolesPage from './roles.jsx';
 import Register from './register.jsx';
+import UserPage from './user.jsx';
 import NavBar from '../components/NavBar';
 
   const MenuPage = () => {
@@ -144,7 +174,7 @@ import NavBar from '../components/NavBar';
             <Route path="inicio" element={<HomePage />} />
             <Route path="productos" element={<Products />} />
             <Route path="roles" element={<RolesPage />} />
-            <Route path="usuarios" element={<Register />} />
+            <Route path="usuarios" element={<UserPage/>} />
             <Route path="*" element={<HomePage />} />
           </Routes>
         </div>

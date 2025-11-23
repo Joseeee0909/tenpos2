@@ -8,6 +8,7 @@ import ProductsPage from './pages/product.jsx';
 import MenuPage from './pages/menu.jsx';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import UserPage from './pages/user.jsx';
 import NavBar from './components/NavBar';
 
 function RoutesWrapper() {
@@ -37,6 +38,15 @@ function RoutesWrapper() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute allowedRoles={["administrador", "admin", "root"]}>
+            <UserPage />
+          </ProtectedRoute>
+        }
+      />
+
       <Route
         path="/productos"
         element={
