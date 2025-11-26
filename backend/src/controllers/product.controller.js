@@ -13,11 +13,11 @@ class ProductController {
     }
     static async crearProducto(req, res) {
         try {
-            const { nombre, precio, descripcion, categoria, stock, disponible= true} = req.body;
-            if (!nombre || !precio || !descripcion || !categoria) {
+            const { idproducto, nombre, precio, descripcion, categoria, stock, disponible= true} = req.body;
+            if (!idproducto ||!nombre || !precio || !descripcion || !categoria) {
                 return res.status(400).json({ mensaje: 'Faltan datos requeridos' });
             }
-            const nuevoProducto = new Producto(nombre, precio, descripcion, categoria, stock, disponible);
+            const nuevoProducto = new Producto(id, nombre, precio, descripcion, categoria, stock, disponible);
             const savedProduct = await nuevoProducto.guardar();
             res.status(201).json({ mensaje: 'Producto creado', producto: savedProduct });
         } catch (err) {

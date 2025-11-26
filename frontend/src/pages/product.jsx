@@ -12,6 +12,7 @@ const Products = () => {
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(false);
 
   const [formData, setFormData] = useState({
+    idproducto  : '',
     nombre: '',
     precio: '',
     categoria: 'comida',
@@ -37,6 +38,7 @@ const Products = () => {
       setProducts(
         data.map(p => ({
           id: p._id,
+          idproducto: p.idproducto,
           nombre: p.nombre,
           precio: p.precio,
           categoria: p.categoria,
@@ -57,6 +59,7 @@ const Products = () => {
     const p = res.data.producto;
     return {
       id: p._id,
+      idproducto: p.idproducto,
       nombre: p.nombre,
       precio: p.precio,
       categoria: p.categoria,
@@ -71,7 +74,7 @@ const Products = () => {
     const res = await authService.api.put(`/products/productos/${id}`, formData);
     const p = res.data.producto;
     return {
-      id: p._id,
+      idproducto: p.idproducto,
       nombre: p.nombre,
       precio: p.precio,
       categoria: p.categoria,
@@ -102,6 +105,7 @@ const Products = () => {
     if (product) {
       setEditingProduct(product);
       setFormData({
+        idproducto: product.idproducto,
         nombre: product.nombre,
         precio: product.precio,
         categoria: product.categoria,
@@ -111,6 +115,7 @@ const Products = () => {
     } else {
       setEditingProduct(null);
       setFormData({
+        idproducto: '',
         nombre: '',
         precio: '',
         categoria: 'comida',
@@ -242,6 +247,7 @@ const Products = () => {
           <table className="products-table">
             <thead>
               <tr>
+                <th> ID</th>
                 <th>NOMBRE</th>
                 <th>CATEGORÍA</th>
                 <th>PRECIO</th>
@@ -254,6 +260,7 @@ const Products = () => {
             <tbody>
               {filteredProducts.map(product => (
                 <tr key={product.id} className={!product.disponible ? 'inactive-row' : ''}>
+                  <td>{product.idproducto}</td>
                   <td>{product.nombre}</td>
                   <td>{product.categoria}</td>
                   <td>${product.precio}</td>
@@ -288,8 +295,17 @@ const Products = () => {
               <h2>{editingProduct ? 'Editar Producto' : 'Nuevo Producto'}</h2>
               <button className="modal-close" onClick={handleCloseModal}>✕</button>
             </div>
-
             <form onSubmit={handleSubmit} className="product-form">
+              <div className="form-group">
+                <label>ID</label>
+                <input
+                  type="text"
+                  value={formData.idproducto}
+                  onChange={(e) => setFormData({ ...formData, idproducto: e.target.value })}
+                  required
+                  disabled={!!editingProduct}
+                />
+              </div>
               <div className="form-group">
                 <label>Nombre</label>
                 <input
