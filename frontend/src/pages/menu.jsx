@@ -11,8 +11,11 @@ import authService from '../services/api.js';
     const menuItems = [
       { id: 'inicio', icon: '🏠', text: 'Inicio', route: '/menu/inicio' },
       { id: 'productos', icon: '📦', text: 'Productos', route: '/menu/productos' },
+      { id: 'pedidos', icon: '📋', text: 'Pedidos', route: '/menu/pedidos' },
+      { id: 'mesas', icon: '🪑', text: 'Mesas', route: '/mesas' },
       { id: 'roles', icon: '🔑', text: 'Roles', route: '/menu/roles' },
       { id: 'usuarios', icon: '👥', text: 'Usuarios', route: '/menu/usuarios' }
+
     ];
 
     const handleLogout = () => {

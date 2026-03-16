@@ -6,20 +6,20 @@ import { verifyToken, requireRole } from "../middlewares/auth.middleware.js";
 // Listar productos (public)
 router.get('/', ProductController.listarProductos);
 
-// Obtener producto por ID (public)
-router.get('/productos/:id', ProductController.obtenerProductoPorId);
-
 // Crear producto (solo admin)
 router.post(
-    '/productos',
+    '/',
     verifyToken,
     requireRole('administrador', 'admin', 'root'),
     ProductController.crearProducto
 );  
 
+// Obtener producto por ID (public)
+router.get('/:id', ProductController.obtenerProductoPorId);
+
 // Actualizar producto por ID (solo admin)
 router.put(
-    '/productos/:id',
+    '/:id',
     verifyToken,
     requireRole('administrador', 'admin', 'root'),
     ProductController.actualizarProducto
@@ -27,12 +27,14 @@ router.put(
 
 // Eliminar producto por ID (solo admin)
 router.delete(
-    '/productos/:id',
+    '/:id',
     verifyToken,
     requireRole('administrador', 'admin', 'root'),
     ProductController.eliminarProducto
 );
-router.patch('/productos/:id/disponible', verifyToken, requireRole('admin', 'root', 'administrador'), ProductController.cambiarDisponibilidad);
+
+// Cambiar disponibilidad de producto
+router.patch('/:id/disponible', verifyToken, requireRole('admin', 'root', 'administrador'), ProductController.cambiarDisponibilidad);
 
 
 export default router;

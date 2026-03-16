@@ -55,7 +55,12 @@ const Products = () => {
 
   // ---------------- CREATE PRODUCT ----------------
   const createProduct = async () => {
-    const res = await authService.api.post('/products/productos', formData);
+    const dataToSend = {
+      ...formData,
+      precio: parseFloat(formData.precio),
+      stock: parseInt(formData.stock) || 0
+    };
+    const res = await authService.api.post('/products', dataToSend);
     const p = res.data.producto;
     return {
       id: p._id,
@@ -71,7 +76,12 @@ const Products = () => {
 
   // ---------------- UPDATE PRODUCT ----------------
   const updateProduct = async (id) => {
-    const res = await authService.api.put(`/products/productos/${id}`, formData);
+    const dataToSend = {
+      ...formData,
+      precio: parseFloat(formData.precio),
+      stock: parseInt(formData.stock) || 0
+    };
+    const res = await authService.api.put(`/products/${id}`, dataToSend);
     const p = res.data.producto;
     return {
       idproducto: p.idproducto,
@@ -86,12 +96,12 @@ const Products = () => {
 
   // ---------------- DELETE / TOGGLE ----------------
   const deleteProduct = async (id) => {
-    await authService.api.delete(`/products/productos/${id}`);
+    await authService.api.delete(`/products/${id}`);
   };
 
   const toggleDisponible = async (id, valor) => {
     try {
-      await authService.api.patch(`/products/productos/${id}/disponible`, { disponible: valor });
+      await authService.api.patch(`/products/${id}/disponible`, { disponible: valor });
       setProducts(products.map(p =>
         p.id === id ? { ...p, disponible: valor } : p
       ));
@@ -130,6 +140,7 @@ const Products = () => {
     setShowModal(false);
     setEditingProduct(null);
     setFormData({
+      idproducto: '',
       nombre: '',
       precio: '',
       categoria: 'comida',
@@ -141,6 +152,13 @@ const Products = () => {
   // ---------------- SUBMIT ----------------
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validación en el frontend
+    if (!formData.idproducto || !formData.nombre || !formData.precio || !formData.descripcion) {
+      alert('Por favor complete todos los campos requeridos');
+      return;
+    }
+
     try {
       if (editingProduct) {
         const updated = await updateProduct(editingProduct.id);
@@ -151,7 +169,8 @@ const Products = () => {
       }
       handleCloseModal();
     } catch (err) {
-      alert('Error guardando el producto');
+      console.error('Error:', err);
+      alert('Error guardando el producto: ' + (err.response?.data?.mensaje || err.message));
     }
   };
 
@@ -333,6 +352,7 @@ const Products = () => {
                     type="text"
                     value={formData.descripcion}
                     onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                    required
                   />
                 </div>
               </div>

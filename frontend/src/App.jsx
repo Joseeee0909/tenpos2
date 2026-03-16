@@ -1,20 +1,17 @@
 import "./App.css";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { useContext } from 'react';
-import Register from './pages/register.jsx';
 import Login from './pages/login.jsx';
-import RolesPage from './pages/roles.jsx';
-import ProductsPage from './pages/product.jsx';
 import MenuPage from './pages/menu.jsx';
+import MesasPage from './pages/mesas.jsx';
+import PedidosPage from './pages/pedido.jsx';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import UserPage from './pages/user.jsx';
-import NavBar from './components/NavBar';
 
 function RoutesWrapper() {
   const { token } = useContext(AuthContext) || {};
 
-  // If there's no token, only allow /login. Redirect all other paths to /login.
+  // Si no hay token, solo el login está disponible
   if (!token) {
     return (
       <Routes>
@@ -25,7 +22,7 @@ function RoutesWrapper() {
     );
   }
 
-  // Authenticated routes
+  // Rutas autenticadas
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/menu" replace />} />
@@ -39,39 +36,21 @@ function RoutesWrapper() {
         }
       />
       <Route
-        path="/admin/users"
+        path="/mesas"
         element={
-          <ProtectedRoute allowedRoles={["administrador", "admin", "root"]}>
-            <UserPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/productos"
-        element={
-          <ProtectedRoute allowedRoles={["administrador", "admin", "root"]}>
-            <ProductsPage />
+          <ProtectedRoute>
+            <MesasPage />
           </ProtectedRoute>
         }
       />
       <Route
-        path="/admin/register"
+        path="/pedidos"
         element={
-          <ProtectedRoute allowedRoles={["administrador", "admin", "root"]}>
-            <Register />
+          <ProtectedRoute>
+            <PedidosPage />
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/admin/roles"
-        element={
-          <ProtectedRoute allowedRoles={["administrador", "admin", "root"]}>
-            <RolesPage />
-          </ProtectedRoute>
-        }
-      />
-      {/* catch-all for authenticated users */}
       <Route path="*" element={<Navigate to="/menu" replace />} />
     </Routes>
   );

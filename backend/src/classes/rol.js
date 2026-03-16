@@ -2,7 +2,7 @@ import RolModel from "../models/rol.model.js";
 
 class Rol {
   constructor(nombre, descripcion) {
-    this.idrol = idrol;
+    this.idrol = `rol_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     this.nombre = nombre;
     this.descripcion = descripcion;
   }

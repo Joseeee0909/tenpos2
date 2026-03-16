@@ -117,6 +117,67 @@ const getTotalUsers = async () => {
   return Array.isArray(res.data) ? res.data.length : (res.data.usuarios?.length || 0);
 };
 
+/* ---------------------------------------------------
+   🔹 MESAS
+--------------------------------------------------- */
+const getMesas = async () => {
+  const res = await api.get("/mesas");
+  return res.data;
+};
+
+const getMesa = async (id) => {
+  const res = await api.get(`/mesas/${id}`);
+  return res.data;
+};
+
+const crearMesa = async (numero, capacidad = 4) => {
+  const res = await api.post("/mesas", { numero, capacidad });
+  return res.data;
+};
+
+const actualizarMesa = async (id, data) => {
+  const res = await api.put(`/mesas/${id}`, data);
+  return res.data;
+};
+
+const eliminarMesa = async (id) => {
+  const res = await api.delete(`/mesas/${id}`);
+  return res.data;
+};
+
+const inicializarMesas = async () => {
+  const res = await api.post("/mesas/init/default");
+  return res.data;
+};
+
+/* ---------------------------------------------------
+   🔹 PEDIDOS
+--------------------------------------------------- */
+const getPedidos = async () => {
+  const res = await api.get("/pedidos");
+  return res.data;
+};
+
+const getPedido = async (id) => {
+  const res = await api.get(`/pedidos/${id}`);
+  return res.data;
+};
+
+const crearPedido = async (data) => {
+  const res = await api.post("/pedidos", data);
+  return res.data;
+};
+
+const actualizarPedido = async (id, data) => {
+  const res = await api.put(`/pedidos/${id}`, data);
+  return res.data;
+};
+
+const eliminarPedido = async (id) => {
+  const res = await api.delete(`/pedidos/${id}`);
+  return res.data;
+};
+
 
 /* ---------------------------------------------------
    🔹 EXPORTAR TODO
@@ -134,5 +195,16 @@ export default {
   getRoles,
   createRole,
   getProducts,
-  getTotalUsers
+  getTotalUsers,
+  getMesas,
+  getMesa,
+  crearMesa,
+  actualizarMesa,
+  eliminarMesa,
+  inicializarMesas,
+  getPedidos,
+  getPedido,
+  crearPedido,
+  actualizarPedido,
+  eliminarPedido
 };

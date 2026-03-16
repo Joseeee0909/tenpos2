@@ -34,7 +34,7 @@ class Producto {
 
     async guardar() {
         const nuevoProducto = new productModel({
-            idproducto: this.id,
+            idproducto: this.idproducto,
             nombre: this.nombre,
             precio: this.precio,
             descripcion: this.descripcion,

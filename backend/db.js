@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const mongoURI = 'mongodb://localhost:27017/Tenpos';
+const mongoURI = 'mongodb://localhost:27017/TenPosBd';
 
 export const connectDB = async () => {
 	try {
