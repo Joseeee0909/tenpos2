@@ -8,7 +8,7 @@ import productRoutes from './routes/product.routes.js';
 const app = express();
 app.use(express.json());
 app.use(cors({
-  origin: 'http://localhost:5173', // URL de tu frontend Vite
+  origin: import.meta.env.VITE_FRONTEND_URL, // URL de tu frontend Vite
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
