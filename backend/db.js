@@ -1,7 +1,20 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config(); // Carga las variables de entorno desde el archivo .env
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const backendEnvPath = path.join(__dirname, '.env');
+const rootEnvPath = path.join(__dirname, '..', '.env');
+
+// Prioriza backend/.env y usa .env de la raiz como fallback.
+if (fs.existsSync(backendEnvPath)) {
+	dotenv.config({ path: backendEnvPath });
+} else {
+	dotenv.config({ path: rootEnvPath });
+}
 
 const mongoURI = process.env.MONGO_URI;
 
