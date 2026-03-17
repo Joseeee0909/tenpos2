@@ -1,7 +1,9 @@
 import jwt from "jsonwebtoken";
 import Usuario from "../classes/usuario.js";
+import dotenv from "dotenv";
+dotenv.config();
 
-const SECRET_KEY = "clave_secreta_temporal";
+const SECRET_KEY = process.env.SECRET_KEY;
 
 class AuthController {
 

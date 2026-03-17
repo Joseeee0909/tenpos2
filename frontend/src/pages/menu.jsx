@@ -1,70 +1,9 @@
-import React, { useContext } from 'react';
-import { Routes, Route, NavLink, useNavigate, Navigate } from 'react-router-dom';
+import React from 'react';
 import '../styles/menu.css';
-import { AuthContext } from '../context/AuthContext';
 import authService from '../services/api.js';
 
 
-  const Sidebar = () => {
-    const navigate = useNavigate();
-    const { user } = useContext(AuthContext) || {};
-    const menuItems = [
-      { id: 'inicio', icon: '🏠', text: 'Inicio', route: '/menu/inicio' },
-      { id: 'productos', icon: '📦', text: 'Productos', route: '/menu/productos' },
-      { id: 'pedidos', icon: '📋', text: 'Pedidos', route: '/menu/pedidos' },
-      { id: 'mesas', icon: '🪑', text: 'Mesas', route: '/mesas' },
-      { id: 'roles', icon: '🔑', text: 'Roles', route: '/menu/roles' },
-      { id: 'usuarios', icon: '👥', text: 'Usuarios', route: '/menu/usuarios' }
-
-    ];
-
-    const handleLogout = () => {
-      if (window.confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-        localStorage.clear();
-        navigate('/login');
-      }
-    };
-
-    return (
-      <div className="sidebar">
-        <div className="sidebar-header">
-          <div className="logo">
-            <div className="logo-icon">🍽️</div>
-            <div className="logo-text">
-              <h2>TenPos</h2>
-              <p>L10</p>
-            </div>
-          </div>
-          {user && (
-            <div className="user-info" style={{ marginTop: 10, fontWeight: 500 }}>
-              {user.username} ({user.rol})
-            </div>
-          )}
-        </div>
-
-        <div className="sidebar-menu">
-          {menuItems.map(item => (
-            <NavLink
-              key={item.id}
-              to={item.route}
-              className={({ isActive }) => `menu-item${isActive ? ' active' : ''}`}
-              style={{ textDecoration: 'none', color: 'inherit' }}
-            >
-              <div className="menu-icon">{item.icon}</div>
-              <div className="menu-text">{item.text}</div>
-            </NavLink>
-          ))}
-        </div>
-
-        <div className="sidebar-footer">
-          <button className="logout-btn" onClick={handleLogout}>
-            <div className="menu-icon">🔚</div>
-            <div className="menu-text">Cerrar Sesión</div>
-          </button>
-        </div>
-      </div>
-    );
-  };
+  
 
   const HomePage = () => {
   const [stats, setStats] = React.useState({
@@ -102,13 +41,13 @@ import authService from '../services/api.js';
   ];
 
   const quickActions = [
-    { id: 'productos', icon: '📦', text: 'Ver Productos', route: '/menu/productos' },
-    { id: 'usuarios', icon: '👥', text: 'Gestionar Usuarios', route: '/menu/usuarios' },
-    { id: 'roles', icon: '🔐', text: 'Configurar Roles', route: '/menu/roles' }
+    { id: 'productos', icon: '📦', text: 'Ver Productos', route: '/productos' },
+    { id: 'usuarios', icon: '👥', text: 'Gestionar Usuarios', route: '/usuarios' },
+    { id: 'roles', icon: '🔐', text: 'Configurar Roles', route: '/roles' }
   ];
 
   return (
-    <div>
+    <div className="dashboard-page">
       <div className="welcome-banner">
         <h2>¡Bienvenido a TenPos! 👋</h2>
         <p>Gestiona tu restaurante de manera eficiente y profesional</p>
@@ -144,45 +83,8 @@ import authService from '../services/api.js';
   );
 };
 
-
-const ContentPage = ({ page, pageData }) => {
-  return (
-    <div>
-      <div className="content-header">
-        <h1>{pageData.title}</h1>
-        <p>{pageData.description}</p>
-      </div>
-
-      <div className="content-card">
-        <p>{pageData.content}</p>
-      </div>
-    </div>
-  );
+const MenuPage = () => {
+  return <HomePage />;
 };
-
-
-import Products from './product.jsx';
-import RolesPage from './roles.jsx';
-import Register from './register.jsx';
-import UserPage from './user.jsx';
-import NavBar from '../components/NavBar';
-
-  const MenuPage = () => {
-    return (
-      <div className="app-container">
-        <Sidebar />
-        <div className="main-content">
-          <Routes>
-            <Route path="" element={<Navigate to="inicio" replace />} />
-            <Route path="inicio" element={<HomePage />} />
-            <Route path="productos" element={<Products />} />
-            <Route path="roles" element={<RolesPage />} />
-            <Route path="usuarios" element={<UserPage/>} />
-            <Route path="*" element={<HomePage />} />
-          </Routes>
-        </div>
-      </div>
-    );
-  };
 
 export default MenuPage;

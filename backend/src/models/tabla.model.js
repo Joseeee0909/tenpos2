@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const tablaSchema = new mongoose.Schema({
+const mesaSchema = new mongoose.Schema({
   numero: { 
     type: Number, 
     required: true, 
@@ -26,4 +26,4 @@ const tablaSchema = new mongoose.Schema({
   }
 });
 
-export default mongoose.model('Tabla', tablaSchema);
+export default mongoose.model('Mesa', mesaSchema);

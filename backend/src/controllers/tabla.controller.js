@@ -1,4 +1,5 @@
 import TablaModel from '../models/tabla.model.js';
+import Pedido from '../models/pedidos.model.js';
 
 class TablaController {
   // Obtener todas las mesas
@@ -49,14 +50,40 @@ class TablaController {
   // Actualizar estado de mesa
   static async actualizarTabla(req, res) {
     try {
-      const { estado, pedido } = req.body;
+      const tablaActual = await TablaModel.findById(req.params.id);
+      if (!tablaActual) return res.status(404).json({ mensaje: 'Mesa no encontrada' });
+
+      const payload = {};
+
+      if (typeof req.body.numero !== 'undefined') payload.numero = req.body.numero;
+      if (typeof req.body.capacidad !== 'undefined') payload.capacidad = req.body.capacidad;
+      if (typeof req.body.pedido !== 'undefined') payload.pedido = req.body.pedido;
+
+      if (typeof req.body.estado !== 'undefined') {
+        const estadoSolicitado = String(req.body.estado);
+
+        if (estadoSolicitado !== 'ocupada') {
+          const pedidoActivo = await Pedido.findOne({
+            mesa: Number(tablaActual.numero),
+            estado: { $ne: 'entregado' }
+          }).select('_id estado');
+
+          if (pedidoActivo) {
+            return res.status(409).json({
+              mensaje: 'Esta mesa tiene un pedido activo y debe permanecer ocupada hasta registrar el pago.'
+            });
+          }
+        }
+
+        payload.estado = estadoSolicitado;
+      }
+
       const tabla = await TablaModel.findByIdAndUpdate(
         req.params.id,
-        { estado, pedido },
+        payload,
         { new: true }
       ).populate('pedido');
 
-      if (!tabla) return res.status(404).json({ mensaje: 'Mesa no encontrada' });
       res.json(tabla);
     } catch (err) {
       res.status(500).json({ error: err.message });

@@ -1,6 +1,9 @@
 import mongoose from 'mongoose';
+import dotenv from 'dotenv';
 
-const mongoURI = 'mongodb://localhost:27017/TenPosBd';
+dotenv.config(); // Carga las variables de entorno desde el archivo .env
+
+const mongoURI = process.env.MONGO_URI;
 
 export const connectDB = async () => {
 	try {

@@ -5,8 +5,13 @@ import Login from './pages/login.jsx';
 import MenuPage from './pages/menu.jsx';
 import MesasPage from './pages/mesas.jsx';
 import PedidosPage from './pages/pedido.jsx';
+import Products from './pages/product.jsx';
+import RolesPage from './pages/roles.jsx';
+import UserPage from './pages/user.jsx';
+import Register from './pages/register.jsx';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import AppShell from './components/AppShell';
 
 function RoutesWrapper() {
   const { token } = useContext(AuthContext) || {};
@@ -25,33 +30,18 @@ function RoutesWrapper() {
   // Rutas autenticadas
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/menu" replace />} />
+      <Route path="/" element={<Navigate to="/inicio" replace />} />
       <Route path="/login" element={<Login />} />
-      <Route
-        path="/menu/*"
-        element={
-          <ProtectedRoute>
-            <MenuPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/mesas"
-        element={
-          <ProtectedRoute>
-            <MesasPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/pedidos"
-        element={
-          <ProtectedRoute>
-            <PedidosPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<Navigate to="/menu" replace />} />
+      <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
+        <Route path="/inicio" element={<MenuPage />} />
+        <Route path="/productos" element={<Products />} />
+        <Route path="/roles" element={<RolesPage />} />
+        <Route path="/usuarios" element={<UserPage />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/mesas" element={<MesasPage />} />
+        <Route path="/pedidos" element={<PedidosPage />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/inicio" replace />} />
     </Routes>
   );
 }

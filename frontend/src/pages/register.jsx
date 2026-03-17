@@ -136,7 +136,7 @@ export default function Register() {
             <h1>Registro de Usuario</h1>
             <p>Complete el formulario para crear una cuenta</p>
           </div>
-          <Link to="/admin/roles" style={{
+          <Link to="/roles" style={{
             marginLeft: 12,
             padding: '8px 12px',
             background: '#667eea',

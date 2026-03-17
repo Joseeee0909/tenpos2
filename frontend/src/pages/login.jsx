@@ -32,11 +32,9 @@ export default function Login() {
         if (data.token) localStorage.setItem('token', data.token);
         if (data.usuario) localStorage.setItem('usuario', JSON.stringify(data.usuario));
       }
-
-      alert(`${data.mensaje || 'Bienvenido'}, ${data.usuario?.username || username}!`);
       
-      // Redirigir siempre a la pantalla de inicio (menu) tras login exitoso
-      window.location.href = '/menu';
+      // Redirigir siempre a la pantalla de inicio tras login exitoso
+      window.location.href = '/inicio';
       
     } catch (err) {
       console.error('Error en login:', err);

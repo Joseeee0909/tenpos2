@@ -11,6 +11,11 @@ const pedidoSchema = new mongoose.Schema({
     ref: "User"
   },
 
+  responsable: {
+    type: String,
+    default: "Sin asignar"
+  },
+
   productos: [
     {
       productoId: {

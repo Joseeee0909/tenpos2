@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import authService from "../services/api";
+import { UxToast } from '../components/UXFeedback';
 import "../styles/user.css";
 
 const Users = () => {
@@ -16,6 +17,17 @@ const Users = () => {
   const navigate = useNavigate();
 
   const [roles, setRoles] = useState([]);
+  const [notice, setNotice] = useState(null);
+
+  const pushNotice = (message, type = 'info') => {
+    setNotice({ message, type, id: Date.now() });
+  };
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 3200);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
 useEffect(() => {
   const loadRoles = async () => {
@@ -39,7 +51,7 @@ useEffect(() => {
       setUsers(data);
     } catch (err) {
       console.log(err);
-      alert("Error cargando usuarios");
+      pushNotice('No se pudieron cargar los usuarios.', 'error');
     }
   };
 
@@ -80,7 +92,7 @@ useEffect(() => {
       }
       loadUsers();
     } catch (err) {
-      alert("No se pudo actualizar el estado");
+      pushNotice('No se pudo actualizar el estado del usuario.', 'error');
     }
   };
 
@@ -97,18 +109,21 @@ useEffect(() => {
 
       setShowModal(false);
       loadUsers();
+      pushNotice(editingUser ? 'Usuario actualizado correctamente.' : 'Usuario creado correctamente.', 'success');
     } catch (err) {
-      alert("Error guardando datos");
+      pushNotice('No se pudieron guardar los datos del usuario.', 'error');
     }
   };
 
-  const goToRegister = () => navigate("/admin/register");
+  const goToRegister = () => navigate("/register");
 
   const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+      <UxToast notice={notice} onClose={() => setNotice(null)} />
+
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg p-6">
           {/* ENCABEZADO */}
