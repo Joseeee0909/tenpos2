@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import authService from '../services/api';
+import PageHeader from '../components/PageHeader';
 import { UxConfirm, UxToast } from '../components/UXFeedback';
 import '../styles/pedido.css';
 
@@ -433,21 +434,30 @@ export default function PedidosPage() {
       <UxToast notice={notice} onClose={() => setNotice(null)} />
       <UxConfirm state={confirmState} onCancel={closeConfirm} onConfirm={handleConfirmAccept} />
 
-      <div className="topbar" id="topbar">
-        <div className="topbar-left">
-          <h2 id="page-title">{view === 'list' ? 'Gestión de pedidos' : editingOrderId ? 'Editar pedido' : 'Nuevo pedido'}</h2>
-          <p id="page-sub">{view === 'list' ? `${stats.total} pedidos registrados hoy` : ''}</p>
-        </div>
-        <div className="topbar-right">
-          <button className="btn-outline" type="button">Exportar</button>
-          {view === 'list' && (
-            <button className="btn-solid" id="new-btn" type="button" onClick={() => goCreate()}>
-              <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="white" strokeWidth="2.2" strokeLinecap="round"/></svg>
-              Nuevo pedido
-            </button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        label="Gestion de pedidos"
+        title={view === 'list' ? 'Gestion de pedidos' : editingOrderId ? 'Editar pedido' : 'Nuevo pedido'}
+        subtitle={view === 'list' ? `${stats.total} pedidos registrados hoy` : ''}
+        iconColor="#3b3b7d"
+        icon={(
+          <svg viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="1.6">
+            <rect x="4" y="3" width="12" height="14" rx="2" />
+            <path d="M7 7h6M7 10h4" />
+          </svg>
+        )}
+        actions={
+          view === 'list' ? (
+            <>
+              <button className="btn-outline" type="button">Exportar</button>
+              <div className="ph-divider"></div>
+              <button className="btn-solid" id="new-btn" type="button" onClick={() => goCreate()}>
+                <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="white" strokeWidth="2.2" strokeLinecap="round"/></svg>
+                Nuevo pedido
+              </button>
+            </>
+          ) : null
+        }
+      />
 
       <div className="content">
         {view === 'list' && (

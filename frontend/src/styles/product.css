@@ -6,15 +6,15 @@
 .products-v3 .btn-solid{height:40px;padding:0 20px;background:#4f46e5;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;color:white;display:flex;align-items:center;gap:7px;font-family:inherit;transition:all .12s}
 .products-v3 .btn-solid:hover{background:#3730a3}
 
-.products-v3 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);background:white;border-bottom:1.5px solid #e0e7ff}
-.products-v3 .stat-card{padding:18px 24px;display:flex;align-items:center;gap:14px;border-right:1px solid #e0e7ff}
-.products-v3 .stat-card:last-child{border-right:none}
+.products-v3 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);background:transparent;gap:12px;padding:12px 20px 0}
+.products-v3 .stat-card{padding:18px 22px;display:flex;align-items:center;gap:14px;border:1.5px solid #e0e7ff;border-radius:14px;background:white}
+.products-v3 .stat-card:last-child{border-right:1.5px solid #e0e7ff}
 .products-v3 .stat-icon{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .products-v3 .stat-icon svg{width:18px;height:18px}
 .products-v3 .stat-num{font-size:26px;font-weight:700;color:#1e1b4b;letter-spacing:-.5px;line-height:1}
 .products-v3 .stat-lbl{font-size:12px;color:#94a3b8;font-weight:500;margin-top:3px}
 
-.products-v3 .toolbar{padding:14px 24px;display:flex;align-items:center;gap:10px;background:white;border-bottom:1.5px solid #e0e7ff;flex-wrap:wrap}
+.products-v3 .toolbar{padding:14px 16px;display:flex;align-items:center;gap:10px;background:white;border:1.5px solid #e0e7ff;border-radius:14px;flex-wrap:wrap;margin:10px 20px 0}
 .products-v3 .search-box{position:relative;flex:1;min-width:200px}
 .products-v3 .search-box input{width:100%;height:40px;padding:0 14px 0 40px;border:1.5px solid #c7d2fe;border-radius:11px;font-size:14px;background:#fafbff;color:#1e1b4b;font-family:inherit;outline:none;transition:all .15s}
 .products-v3 .search-box input:focus{border-color:#4f46e5;background:white}
@@ -32,8 +32,16 @@
 .products-v3 .sw.on{background:#10b981}
 .products-v3 .sw-k{position:absolute;top:2.5px;left:2.5px;width:12px;height:12px;background:white;border-radius:50%;transition:left .2s}
 .products-v3 .sw.on .sw-k{left:15.5px}
+.products-v3 .sort-wrap{height:38px;display:flex;align-items:center;gap:8px;padding:0 8px;border:1.5px solid #e0e7ff;background:white;border-radius:12px}
+.products-v3 .sort-label{font-size:11px;font-weight:700;color:#64748b;letter-spacing:.6px;text-transform:uppercase;padding-left:2px}
+.products-v3 .sort-select-wrap{position:relative;display:flex;align-items:center;min-width:220px;height:32px;border:1px solid #dbe4ff;background:#f8faff;border-radius:9px;padding:0 28px 0 28px;transition:all .15s}
+.products-v3 .sort-select-wrap:hover{border-color:#a5b4fc;background:#f3f6ff}
+.products-v3 .sort-select-wrap:focus-within{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.12);background:white}
+.products-v3 .sort-select-wrap > svg{position:absolute;left:9px;width:14px;height:14px;color:#94a3b8;pointer-events:none}
+.products-v3 .sort-select-wrap .sort-caret{left:auto;right:9px;width:13px;height:13px;color:#64748b}
+.products-v3 .sort-wrap select{appearance:none;-webkit-appearance:none;-moz-appearance:none;width:100%;height:100%;border:none;outline:none;background:transparent;color:#1e1b4b;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;padding-right:6px}
 
-.products-v3 .table-wrap{padding:24px 24px 32px;background:#f1f5f9}
+.products-v3 .table-wrap{padding:16px 20px 32px;background:#f1f5f9}
 .products-v3 .table-scroll{overflow-x:auto}
 .products-v3 .prod-table{width:100%;border-collapse:separate;border-spacing:0 10px;min-width:980px}
 .products-v3 .prod-table thead tr th{font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:.7px;text-transform:uppercase;padding:0 18px 4px;text-align:left}
@@ -57,7 +65,15 @@
 .products-v3 .cat-Otro{background:#f0fdf4;color:#15803d}
 .products-v3 .price-val{font-size:15px;font-weight:700;color:#4f46e5;letter-spacing:-.3px}
 .products-v3 .stock-val{font-size:15px;font-weight:600;color:#1e1b4b}
-.products-v3 .stock-low{color:#dc2626}
+.products-v3 .stock-cell{display:flex;align-items:center;gap:10px}
+.products-v3 .stock-state{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.2px}
+.products-v3 .stock-dot{width:7px;height:7px;border-radius:50%}
+.products-v3 .stock-green{background:#ecfdf5;color:#047857}
+.products-v3 .stock-green .stock-dot{background:#22c55e}
+.products-v3 .stock-yellow{background:#fffbeb;color:#b45309}
+.products-v3 .stock-yellow .stock-dot{background:#f59e0b}
+.products-v3 .stock-red{background:#fef2f2;color:#b91c1c}
+.products-v3 .stock-red .stock-dot{background:#ef4444}
 .products-v3 .desc-cell{font-size:13px;color:#64748b;font-weight:400;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .products-v3 .avail-cell{display:flex;align-items:center;justify-content:center}
@@ -119,20 +135,21 @@
 .products-v3 .pp-meta{font-size:13px;color:#94a3b8;margin-top:3px}
 
 @media (max-width: 1100px){
-  .products-v3 .stats-row{grid-template-columns:repeat(2,1fr)}
-  .products-v3 .stat-card:nth-child(2){border-right:none}
-  .products-v3 .stat-card:nth-child(1),
-  .products-v3 .stat-card:nth-child(2){border-bottom:1px solid #e0e7ff}
+  .products-v3 .stats-row{grid-template-columns:repeat(2,1fr);padding:10px 16px 0}
+  .products-v3 .toolbar{margin:10px 16px 0}
 }
 
 @media (max-width: 760px){
   .products-v3 .topbar{height:auto;padding:12px;flex-direction:column;align-items:flex-start;gap:10px}
   .products-v3 .btn-solid{width:100%;justify-content:center}
-  .products-v3 .toolbar{padding:12px}
+  .products-v3 .stats-row{padding:10px 12px 0;grid-template-columns:1fr;gap:10px}
+  .products-v3 .toolbar{padding:12px;margin:10px 12px 0}
   .products-v3 .search-box{min-width:100%}
   .products-v3 .filter-group{overflow-x:auto;flex-wrap:nowrap;width:100%;padding-bottom:2px}
   .products-v3 .fchip{white-space:nowrap}
   .products-v3 .toggle-avail{width:100%;justify-content:center}
+  .products-v3 .sort-wrap{width:100%;justify-content:space-between;padding:8px 10px;height:auto}
+  .products-v3 .sort-select-wrap{flex:1;min-width:0}
   .products-v3 .table-wrap{padding:12px 12px 18px}
   .products-v3 .form-2{grid-template-columns:1fr}
   .products-v3 .mfooter{flex-direction:column}

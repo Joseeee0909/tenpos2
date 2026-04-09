@@ -2,8 +2,6 @@
 
 .pedidos-v3 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 .pedidos-v3 {
@@ -27,7 +25,7 @@
   font-family: 'Plus Jakarta Sans', sans-serif;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: auto;
   min-height: 700px;
   background: #f1f5f9;
 }
@@ -144,21 +142,24 @@
 .pedidos-v3 .stats-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  background: white;
-  border-bottom: 1.5px solid #e0e7ff;
+  background: transparent;
+  gap: 12px;
+  padding: 12px 20px 0;
   flex-shrink: 0;
 }
 
 .pedidos-v3 .stat-card {
-  padding: 18px 24px;
+  padding: 18px 22px;
   display: flex;
   align-items: center;
   gap: 14px;
-  border-right: 1px solid #e0e7ff;
+  border: 1.5px solid #e0e7ff;
+  border-radius: 14px;
+  background: white;
 }
 
 .pedidos-v3 .stat-card:last-child {
-  border-right: none;
+  border-right: 1.5px solid #e0e7ff;
 }
 
 .pedidos-v3 .stat-icon {
@@ -193,12 +194,14 @@
 }
 
 .pedidos-v3 .toolbar {
-  padding: 14px 20px;
+  padding: 14px 16px;
+  margin: 10px 20px 0;
   display: flex;
   align-items: center;
   gap: 10px;
   background: white;
-  border-bottom: 1.5px solid #e0e7ff;
+  border: 1.5px solid #e0e7ff;
+  border-radius: 14px;
   flex-shrink: 0;
   flex-wrap: wrap;
 }
@@ -287,7 +290,7 @@
 .pedidos-v3 .orders-scroller {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 20px;
+  padding: 16px 20px 24px;
   background: #f1f5f9;
 }
 
@@ -1195,6 +1198,12 @@
 
   .pedidos-v3 .stats-row {
     grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 10px 16px 0;
+  }
+
+  .pedidos-v3 .toolbar {
+    margin: 10px 16px 0;
   }
 }
 
@@ -1218,6 +1227,7 @@
   }
 
   .pedidos-v3 .toolbar {
+    margin: 10px 12px 0;
     padding: 12px;
   }
 
@@ -1238,11 +1248,14 @@
 
   .pedidos-v3 .stats-row {
     grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 10px 12px 0;
   }
 
   .pedidos-v3 .stat-card {
-    border-right: none;
-    border-bottom: 1px solid #e0e7ff;
+    padding: 14px 16px;
+    border-right: 1.5px solid #e0e7ff;
+    border-bottom: 1.5px solid #e0e7ff;
   }
 
   .pedidos-v3 .stat-card:last-child {

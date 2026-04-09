@@ -24,7 +24,6 @@ export default function Login() {
 
     try {
       const data = await authService.login(username, password);
-      console.log('Respuesta del servidor:', data);
       // If AuthContext is available, call its login; otherwise fall back to localStorage
       if (typeof contextLogin === 'function') {
         contextLogin({ token: data.token, usuario: data.usuario });

@@ -1,6 +1,7 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/api';
+import PageHeader from '../components/PageHeader';
 import '../styles/mesas.css';
 
 const ACTIVE_ORDER_STATES = new Set(['pendiente', 'preparando', 'listo']);
@@ -336,48 +337,45 @@ export default function MesasPage() {
       )}
 
       {/* HEADER */}
-      <header className="mesas-header">
-        <div className="header-left">
-          <div className="logo-icon">
-            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7" rx="1.5" />
-              <rect x="14" y="3" width="7" height="7" rx="1.5" />
-              <rect x="3" y="14" width="7" height="7" rx="1.5" />
-              <rect x="14" y="14" width="7" height="7" rx="1.5" />
-            </svg>
-          </div>
-          <div>
-            <h1>Gestión de mesas</h1>
-            <p>{stats.total} mesa{stats.total !== 1 ? 's' : ''} registrada{stats.total !== 1 ? 's' : ''}</p>
-          </div>
-        </div>
-        <button className="btn-new" onClick={() => handleOpenModal()}>
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="8" y1="2" x2="8" y2="14" />
-            <line x1="2" y1="8" x2="14" y2="8" />
+      <PageHeader
+        label="Gestion de mesas"
+        title="Gestion de mesas"
+        subtitle={`${stats.total} mesa${stats.total !== 1 ? 's' : ''} registrada${stats.total !== 1 ? 's' : ''}`}
+        iconColor="#3b3b7d"
+        icon={(
+          <svg viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="1.6">
+            <rect x="3" y="3" width="6" height="6" rx="1.5" />
+            <rect x="11" y="3" width="6" height="6" rx="1.5" />
+            <rect x="3" y="11" width="6" height="6" rx="1.5" />
+            <rect x="11" y="11" width="6" height="6" rx="1.5" />
           </svg>
-          Nueva mesa
-        </button>
-      </header>
+        )}
+        actions={(
+          <button className="btn-solid" type="button" onClick={() => handleOpenModal()}>
+            <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="white" strokeWidth="2.2" strokeLinecap="round"/></svg>
+            Nueva mesa
+          </button>
+        )}
+      />
 
       <main className="mesas-main">
         {/* STATS */}
-        <div className="stats">
-          <div className="stat-chip">
-            <span className="stat-dot all"></span>
-            <strong>{stats.total}</strong> mesas totales
+        <div className="stats-row-mesas">
+          <div className="stat-card-mesas">
+            <svg viewBox="0 0 16 16" fill="none" stroke="#3b3b7d" strokeWidth="1.6"><rect x="3" y="3" width="6" height="6" rx="1.5" /><rect x="10" y="3" width="3" height="3" rx="1"/><rect x="3" y="10" width="3" height="3" rx="1"/><rect x="10" y="10" width="3" height="3" rx="1"/></svg>
+            <div><div className="stat-num-mesas">{stats.total}</div><div className="stat-lbl-mesas">Mesas totales</div></div>
           </div>
-          <div className="stat-chip">
-            <span className="stat-dot disponible"></span>
-            <strong>{stats.disponibles}</strong> disponibles
+          <div className="stat-card-mesas">
+            <svg viewBox="0 0 16 16" fill="none" stroke="#059669" strokeWidth="1.6"><circle cx="8" cy="8" r="5.5"/><path d="M6 8l1.5 1.5 2.5-3"/></svg>
+            <div><div className="stat-num-mesas">{stats.disponibles}</div><div className="stat-lbl-mesas">Disponibles</div></div>
           </div>
-          <div className="stat-chip">
-            <span className="stat-dot ocupada"></span>
-            <strong>{stats.ocupadas}</strong> ocupadas
+          <div className="stat-card-mesas">
+            <svg viewBox="0 0 16 16" fill="none" stroke="#dc2626" strokeWidth="1.6"><circle cx="8" cy="8" r="5.5"/><path d="M8 6v4M6 8h4"/></svg>
+            <div><div className="stat-num-mesas">{stats.ocupadas}</div><div className="stat-lbl-mesas">Ocupadas</div></div>
           </div>
-          <div className="stat-chip">
-            <span className="stat-dot reservada"></span>
-            <strong>{stats.reservadas}</strong> reservadas
+          <div className="stat-card-mesas">
+            <svg viewBox="0 0 16 16" fill="none" stroke="#d97706" strokeWidth="1.6"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v6M5 8h6"/></svg>
+            <div><div className="stat-num-mesas">{stats.reservadas}</div><div className="stat-lbl-mesas">Reservadas</div></div>
           </div>
         </div>
 

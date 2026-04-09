@@ -81,6 +81,21 @@ const createRole = async ({ nombre, descripcion }) => {
   return res.data;
 };
 
+const updateRole = async (id, data) => {
+  const res = await api.put(`/roles/${id}`, data);
+  return res.data;
+};
+
+const deactivateRole = async (id) => {
+  const res = await api.put(`/roles/desactivar/${id}`);
+  return res.data;
+};
+
+const activateRole = async (id) => {
+  const res = await api.put(`/roles/activar/${id}`);
+  return res.data;
+};
+
 /* ---------------------------------------------------
    🔹 AUTH
 --------------------------------------------------- */
@@ -194,6 +209,9 @@ export default {
   activateUser,
   getRoles,
   createRole,
+  updateRole,
+  deactivateRole,
+  activateRole,
   getProducts,
   getTotalUsers,
   getMesas,

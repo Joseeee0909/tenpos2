@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { UxConfirm } from './UXFeedback';
@@ -11,13 +11,25 @@ export default function SidebarMenu() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const normalizeRole = (role) => {
+    const raw = String(role || '').trim().toLowerCase();
+    if (raw === 'administrador') return 'admin';
+    return raw;
+  };
+
+  const canManageAccess = ['admin', 'root'].includes(normalizeRole(user?.rol));
+
   const menuItems = [
     { id: 'inicio', icon: '🏠', text: 'Inicio', route: '/inicio' },
     { id: 'productos', icon: '📦', text: 'Productos', route: '/productos' },
     { id: 'pedidos', icon: '📋', text: 'Pedidos', route: '/pedidos' },
     { id: 'mesas', icon: '🪑', text: 'Mesas', route: '/mesas' },
-    { id: 'roles', icon: '🔑', text: 'Roles', route: '/roles' },
-    { id: 'usuarios', icon: '👥', text: 'Usuarios', route: '/usuarios' }
+    ...(canManageAccess
+      ? [
+          { id: 'roles', icon: '🔑', text: 'Roles', route: '/roles' },
+          { id: 'usuarios', icon: '👥', text: 'Usuarios', route: '/usuarios' }
+        ]
+      : [])
   ];
 
   const handleLogout = () => {

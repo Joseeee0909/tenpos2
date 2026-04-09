@@ -20,10 +20,7 @@ const mongoURI = process.env.MONGO_URI;
 
 export const connectDB = async () => {
 	try {
-		await mongoose.connect(mongoURI, {
-			useNewUrlParser: true,
-			useUnifiedTopology: true,
-		});
+		await mongoose.connect(mongoURI);
 		console.log(`MongoDB conectado en: ${mongoose.connection.host}:${mongoose.connection.port}/${mongoose.connection.name}`);
 	} catch (err) {
 		console.error('Error de conexión a MongoDB:', err);

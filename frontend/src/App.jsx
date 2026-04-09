@@ -1,4 +1,3 @@
-import "./App.css";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { useContext } from 'react';
 import Login from './pages/login.jsx';
@@ -35,8 +34,22 @@ function RoutesWrapper() {
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
         <Route path="/inicio" element={<MenuPage />} />
         <Route path="/productos" element={<Products />} />
-        <Route path="/roles" element={<RolesPage />} />
-        <Route path="/usuarios" element={<UserPage />} />
+        <Route
+          path="/roles"
+          element={(
+            <ProtectedRoute allowedRoles={['admin', 'root']}>
+              <RolesPage />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/usuarios"
+          element={(
+            <ProtectedRoute allowedRoles={['admin', 'root']}>
+              <UserPage />
+            </ProtectedRoute>
+          )}
+        />
         <Route path="/register" element={<Register />} />
         <Route path="/mesas" element={<MesasPage />} />
         <Route path="/pedidos" element={<PedidosPage />} />

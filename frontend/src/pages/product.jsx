@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import authService from '../services/api';
+import PageHeader from '../components/PageHeader';
 import { UxToast } from '../components/UXFeedback';
 import '../styles/product.css';
 
@@ -22,11 +23,19 @@ const normalizeCategory = (value) => {
 const toApiCategory = (value) => String(value || 'otro').toLowerCase();
 const toCurrency = (n) => `$${Math.round(Number(n || 0)).toLocaleString('es-CO')}`;
 
+const getStockState = (stock) => {
+  const value = Number(stock || 0);
+  if (value <= 3) return { key: 'red', label: 'Critico' };
+  if (value <= 8) return { key: 'yellow', label: 'Medio' };
+  return { key: 'green', label: 'Alto' };
+};
+
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentFilter, setCurrentFilter] = useState('all');
   const [onlyAvailable, setOnlyAvailable] = useState(false);
+  const [sortBy, setSortBy] = useState('name_asc');
 
   const [notice, setNotice] = useState(null);
 
@@ -86,7 +95,7 @@ export default function ProductsPage() {
 
   const filteredProducts = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    return products.filter((p) => {
+    const base = products.filter((p) => {
       const byCategory = currentFilter === 'all' || p.categoria === currentFilter;
       const byAvailability = !onlyAvailable || p.disponible;
       const bySearch =
@@ -96,7 +105,16 @@ export default function ProductsPage() {
         p.descripcion.toLowerCase().includes(q);
       return byCategory && byAvailability && bySearch;
     });
-  }, [products, searchTerm, currentFilter, onlyAvailable]);
+
+    return [...base].sort((a, b) => {
+      if (sortBy === 'name_desc') return b.nombre.localeCompare(a.nombre, 'es');
+      if (sortBy === 'price_asc') return a.precio - b.precio;
+      if (sortBy === 'price_desc') return b.precio - a.precio;
+      if (sortBy === 'stock_asc') return a.stock - b.stock;
+      if (sortBy === 'stock_desc') return b.stock - a.stock;
+      return a.nombre.localeCompare(b.nombre, 'es');
+    });
+  }, [products, searchTerm, currentFilter, onlyAvailable, sortBy]);
 
   const stats = useMemo(() => {
     return {
@@ -225,16 +243,23 @@ export default function ProductsPage() {
     <div className="products-v3 app">
       <UxToast notice={notice} onClose={() => setNotice(null)} />
 
-      <div className="topbar">
-        <div className="topbar-left">
-          <h2>Gestion de productos</h2>
-          <p>{stats.total} productos registrados</p>
-        </div>
-        <button className="btn-solid" type="button" onClick={openNew}>
-          <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="white" strokeWidth="2.2" strokeLinecap="round"/></svg>
-          Nuevo producto
-        </button>
-      </div>
+      <PageHeader
+        label="Gestion de productos"
+        title="Gestion de productos"
+        subtitle={`${stats.total} productos registrados`}
+        iconColor="#3b3b7d"
+        icon={(
+          <svg viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="1.6">
+            <path d="M4 4h12v3l-3 4v6H7v-6z" />
+          </svg>
+        )}
+        actions={(
+          <button className="btn-solid" type="button" onClick={openNew}>
+            <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="white" strokeWidth="2.2" strokeLinecap="round"/></svg>
+            Nuevo producto
+          </button>
+        )}
+      />
 
       <div className="stats-row">
         <div className="stat-card">
@@ -293,6 +318,26 @@ export default function ProductsPage() {
           <div className={`sw ${onlyAvailable ? 'on' : ''}`}><div className="sw-k"></div></div>
           Solo disponibles
         </button>
+
+        <div className="sort-wrap" aria-label="Ordenar productos">
+          <span className="sort-label">Ordenar</span>
+          <div className="sort-select-wrap">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+              <path d="M5 3h8M3 8h10M7 13h6" />
+            </svg>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              <option value="name_asc">Nombre (A-Z)</option>
+              <option value="name_desc">Nombre (Z-A)</option>
+              <option value="price_asc">Precio (menor a mayor)</option>
+              <option value="price_desc">Precio (mayor a menor)</option>
+              <option value="stock_asc">Stock (menor a mayor)</option>
+              <option value="stock_desc">Stock (mayor a menor)</option>
+            </select>
+            <svg className="sort-caret" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="m4 6 4 4 4-4" />
+            </svg>
+          </div>
+        </div>
       </div>
 
       <div className="table-wrap">
@@ -330,7 +375,15 @@ export default function ProductsPage() {
                     </td>
                     <td><span className={`cat-pill cat-${p.categoria}`}>{p.categoria}</span></td>
                     <td><span className="price-val">{toCurrency(p.precio)}</span></td>
-                    <td><span className={`stock-val ${p.stock <= 3 ? 'stock-low' : ''}`}>{p.stock}{p.stock <= 3 ? ' ⚠️' : ''}</span></td>
+                    <td>
+                      <div className="stock-cell">
+                        <span className="stock-val">{p.stock}</span>
+                        <span className={`stock-state ${`stock-${getStockState(p.stock).key}`}`}>
+                          <span className="stock-dot"></span>
+                          {getStockState(p.stock).label}
+                        </span>
+                      </div>
+                    </td>
                     <td><span className="desc-cell" title={p.descripcion}>{p.descripcion}</span></td>
                     <td>
                       <div className="avail-cell">

@@ -1,4 +1,3 @@
-import React from 'react';
 import '../styles/ux-feedback.css';
 
 export function UxToast({ notice, onClose }) {
