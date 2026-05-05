@@ -1,5 +1,5 @@
 // UserRegistration.jsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import authService from '../services/api.js';
 import '../styles/register.css';
@@ -92,8 +92,7 @@ export default function Register() {
       setLoading(true);
       try {
         // Llamar al backend para registrar
-        const data = await authService.register(formData);
-        console.log('Registro backend:', data);
+        await authService.register(formData);
         setSubmitted(true);
 
         // Limpiar form
@@ -136,7 +135,7 @@ export default function Register() {
             <h1>Registro de Usuario</h1>
             <p>Complete el formulario para crear una cuenta</p>
           </div>
-          <Link to="/admin/roles" style={{
+          <Link to="/roles" style={{
             marginLeft: 12,
             padding: '8px 12px',
             background: '#667eea',

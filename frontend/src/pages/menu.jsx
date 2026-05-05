@@ -1,185 +1,211 @@
-import React, { useContext } from 'react';
-import { Routes, Route, NavLink, useNavigate, Navigate } from 'react-router-dom';
-import '../styles/menu.css';
-import { AuthContext } from '../context/AuthContext';
+import { useContext, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import authService from '../services/api.js';
+import { AuthContext } from '../context/AuthContext';
+import { UxToast } from '../components/UXFeedback';
+import '../styles/menu.css';
 
+const toCurrency = (value) => `$${Math.round(Number(value || 0)).toLocaleString('es-CO')}`;
 
-  const Sidebar = () => {
-    const navigate = useNavigate();
-    const { user } = useContext(AuthContext) || {};
-    const menuItems = [
-      { id: 'inicio', icon: '🏠', text: 'Inicio', route: '/menu/inicio' },
-      { id: 'productos', icon: '📦', text: 'Productos', route: '/menu/productos' },
-      { id: 'roles', icon: '🔑', text: 'Roles', route: '/menu/roles' },
-      { id: 'usuarios', icon: '👥', text: 'Usuarios', route: '/menu/usuarios' }
-    ];
+const isToday = (dateValue) => {
+  const d = new Date(dateValue || Date.now());
+  const now = new Date();
+  return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+};
 
-    const handleLogout = () => {
-      if (window.confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-        localStorage.clear();
-        navigate('/login');
-      }
-    };
+const normalizeRole = (role) => {
+  const value = String(role || '').trim().toLowerCase();
+  if (value === 'administrador') return 'admin';
+  return value;
+};
 
-    return (
-      <div className="sidebar">
-        <div className="sidebar-header">
-          <div className="logo">
-            <div className="logo-icon">🍽️</div>
-            <div className="logo-text">
-              <h2>TenPos</h2>
-              <p>L10</p>
-            </div>
-          </div>
-          {user && (
-            <div className="user-info" style={{ marginTop: 10, fontWeight: 500 }}>
-              {user.username} ({user.rol})
-            </div>
-          )}
-        </div>
+const formatClock = (dateValue) => {
+  const d = new Date(dateValue || Date.now());
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
 
-        <div className="sidebar-menu">
-          {menuItems.map(item => (
-            <NavLink
-              key={item.id}
-              to={item.route}
-              className={({ isActive }) => `menu-item${isActive ? ' active' : ''}`}
-              style={{ textDecoration: 'none', color: 'inherit' }}
-            >
-              <div className="menu-icon">{item.icon}</div>
-              <div className="menu-text">{item.text}</div>
-            </NavLink>
-          ))}
-        </div>
+function HomePage() {
+  const navigate = useNavigate();
+  const { user } = useContext(AuthContext) || {};
+  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
-        <div className="sidebar-footer">
-          <button className="logout-btn" onClick={handleLogout}>
-            <div className="menu-icon">🔚</div>
-            <div className="menu-text">Cerrar Sesión</div>
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  const HomePage = () => {
-  const [stats, setStats] = React.useState({
-    productos: 0,
-    usuarios: 0
+  const [stats, setStats] = useState({
+    productosActivos: 0,
+    usuarios: 0,
+    ordenesCompletadasHoy: 0,
+    ticketPromedioHoy: 0,
+    pedidosPreparando: 0,
+    mesasOcupadas: 0,
+    mesasDisponibles: 0,
+    pedidosPendientes: 0
   });
 
-  React.useEffect(() => {
-    loadStats();
-  }, []);
+  const canManageAccess = ['admin', 'root'].includes(normalizeRole(user?.rol));
+
+  const pushNotice = (message, type = 'info') => {
+    setNotice({ message, type, id: Date.now() });
+  };
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 3200);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   const loadStats = async () => {
     try {
-      // Traer todos los productos
-      const productosData = await authService.getProducts();
-      const productosActivos = productosData.filter(p => p.disponible !== false).length;
+      setLoading(true);
+      const [productosData, totalUsuarios, pedidosData, mesasData] = await Promise.all([
+        authService.getProducts(),
+        authService.getTotalUsers(),
+        authService.getPedidos(),
+        authService.getMesas()
+      ]);
 
-      // Traer total de usuarios
-      const totalUsuarios = await authService.getTotalUsers();
+      const productos = Array.isArray(productosData) ? productosData : [];
+      const pedidos = Array.isArray(pedidosData) ? pedidosData : [];
+      const mesas = Array.isArray(mesasData) ? mesasData : [];
+
+      const productosActivos = productos.filter((p) => p.disponible !== false).length;
+
+      const pedidosHoy = pedidos.filter((p) => isToday(p.fecha));
+      const completadasHoy = pedidosHoy.filter((p) => String(p.estado || '').toLowerCase() === 'entregado');
+      const totalCompletadas = completadasHoy.reduce((sum, p) => sum + Number(p.total || 0), 0);
+      const ticketPromedioHoy = completadasHoy.length ? totalCompletadas / completadasHoy.length : 0;
+
+      const pedidosPreparando = pedidos.filter((p) => String(p.estado || '').toLowerCase() === 'preparando').length;
+      const pedidosPendientes = pedidos.filter((p) => String(p.estado || '').toLowerCase() === 'pendiente').length;
+
+      const mesasOcupadas = mesas.filter((m) => ['ocupada', 'reservada'].includes(String(m.estado || '').toLowerCase())).length;
+      const mesasDisponibles = mesas.filter((m) => String(m.estado || '').toLowerCase() === 'disponible').length;
 
       setStats({
-        productos: productosActivos,
-        usuarios: totalUsuarios
+        productosActivos,
+        usuarios: Number(totalUsuarios || 0),
+        ordenesCompletadasHoy: completadasHoy.length,
+        ticketPromedioHoy,
+        pedidosPreparando,
+        mesasOcupadas,
+        mesasDisponibles,
+        pedidosPendientes
       });
+
+      setLastUpdated(new Date());
     } catch (err) {
-      console.error("Error cargando estadísticas:", err);
+      console.error('Error cargando estadisticas:', err);
+      pushNotice('No se pudieron actualizar las metricas del dashboard.', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadStats();
+  }, []);
+
   const dashboardStats = [
-    { value: stats.productos, label: 'Productos Activos', icon: '📦', color: 'blue' },
-    { value: stats.usuarios, label: 'Usuarios Registrados', icon: '👥', color: 'purple' },
-    { value: '0', label: 'Órdenes Completadas', icon: '✅', color: 'green' },
-    { value: '0', label: 'Calificación Promedio', icon: '⭐', color: 'orange' }
+    {
+      value: stats.productosActivos,
+      label: 'Productos Activos',
+      icon: '📦',
+      tone: 'blue'
+    },
+    {
+      value: stats.usuarios,
+      label: 'Usuarios Registrados',
+      icon: '👥',
+      tone: 'violet'
+    },
+    {
+      value: stats.ordenesCompletadasHoy,
+      label: 'Ordenes Completadas Hoy',
+      icon: '✅',
+      tone: 'green'
+    },
+    {
+      value: toCurrency(stats.ticketPromedioHoy),
+      label: 'Ticket Promedio Hoy',
+      icon: '💳',
+      tone: 'amber',
+      compact: true
+    }
   ];
 
-  const quickActions = [
-    { id: 'productos', icon: '📦', text: 'Ver Productos', route: '/menu/productos' },
-    { id: 'usuarios', icon: '👥', text: 'Gestionar Usuarios', route: '/menu/usuarios' },
-    { id: 'roles', icon: '🔐', text: 'Configurar Roles', route: '/menu/roles' }
-  ];
+  const quickActions = useMemo(() => {
+    const base = [
+      { id: 'nuevo-pedido', icon: '🧾', text: 'Nuevo Pedido', route: '/pedidos?mode=create', tone: 'primary' },
+      { id: 'mesas', icon: '🪑', text: 'Ver Mesas', route: '/mesas', tone: 'neutral' },
+      { id: 'productos', icon: '📦', text: 'Ver Productos', route: '/productos', tone: 'neutral' }
+    ];
+
+    if (canManageAccess) {
+      base.push(
+        { id: 'usuarios', icon: '👥', text: 'Gestionar Usuarios', route: '/usuarios', tone: 'neutral' },
+        { id: 'roles', icon: '🔐', text: 'Configurar Roles', route: '/roles', tone: 'neutral' }
+      );
+    }
+
+    return base;
+  }, [canManageAccess]);
 
   return (
-    <div>
-      <div className="welcome-banner">
-        <h2>¡Bienvenido a TenPos! 👋</h2>
-        <p>Gestiona tu restaurante de manera eficiente y profesional</p>
-      </div>
+    <div className="dashboard-page">
+      <UxToast notice={notice} onClose={() => setNotice(null)} />
 
-      <div className="home-grid">
-        {dashboardStats.map((stat, index) => (
-          <div key={index} className={`stat-card ${stat.color}`}>
+      <section className="hero-band">
+        <div className="hero-content">
+          <div className="hero-badge">🚀 En vivo</div>
+          <h2>Panel de Control</h2>
+          <p>Visibilidad operativa en tiempo real para tu restaurante</p>
+        </div>
+        <div className="hero-meta">
+          <button type="button" className="refresh-btn" onClick={loadStats} disabled={loading}>
+            <span className="refresh-icon">{loading ? '⏳' : '🔄'}</span>
+            {loading ? 'Actualizando...' : 'Actualizar'}
+          </button>
+          <span className="last-update">{lastUpdated ? `Última actualización: ${formatClock(lastUpdated)}` : 'Sin actualizar'}</span>
+        </div>
+      </section>
+
+      <section className="home-grid">
+        {dashboardStats.map((stat) => (
+          <article key={stat.label} className={`stat-card ${stat.tone}`}>
             <div className="stat-icon">{stat.icon}</div>
-            <div className="stat-value">{stat.value}</div>
+            <div className={`stat-value ${stat.compact ? 'compact' : ''}`}>{stat.value}</div>
             <div className="stat-label">{stat.label}</div>
-          </div>
+          </article>
         ))}
-      </div>
+      </section>
 
-      <div className="content-card" style={{ marginTop: '30px' }}>
-        <h3 className="section-title">Acciones Rápidas</h3>
+      <section className="live-strip">
+        <div className="live-chip preparing">Preparando: <strong>{stats.pedidosPreparando}</strong></div>
+        <div className="live-chip pending">Pendientes: <strong>{stats.pedidosPendientes}</strong></div>
+        <div className="live-chip busy">Mesas ocupadas: <strong>{stats.mesasOcupadas}</strong></div>
+        <div className="live-chip free">Mesas disponibles: <strong>{stats.mesasDisponibles}</strong></div>
+      </section>
+
+      <section className="content-card">
+        <h3 className="section-title">Acciones Rapidas</h3>
         <div className="quick-actions">
-          {quickActions.map(action => (
-            <div
+          {quickActions.map((action) => (
+            <button
               key={action.id}
-              className="action-btn"
-              style={{ cursor: 'pointer' }}
-              onClick={() => window.location.href = action.route}
+              className={`action-btn ${action.tone}`}
+              onClick={() => navigate(action.route)}
+              type="button"
             >
               <div className="action-btn-icon">{action.icon}</div>
               <div className="action-btn-text">{action.text}</div>
-            </div>
+            </button>
           ))}
         </div>
-      </div>
+      </section>
     </div>
   );
-};
+}
 
-
-const ContentPage = ({ page, pageData }) => {
-  return (
-    <div>
-      <div className="content-header">
-        <h1>{pageData.title}</h1>
-        <p>{pageData.description}</p>
-      </div>
-
-      <div className="content-card">
-        <p>{pageData.content}</p>
-      </div>
-    </div>
-  );
-};
-
-
-import Products from './product.jsx';
-import RolesPage from './roles.jsx';
-import Register from './register.jsx';
-import UserPage from './user.jsx';
-import NavBar from '../components/NavBar';
-
-  const MenuPage = () => {
-    return (
-      <div className="app-container">
-        <Sidebar />
-        <div className="main-content">
-          <Routes>
-            <Route path="" element={<Navigate to="inicio" replace />} />
-            <Route path="inicio" element={<HomePage />} />
-            <Route path="productos" element={<Products />} />
-            <Route path="roles" element={<RolesPage />} />
-            <Route path="usuarios" element={<UserPage/>} />
-            <Route path="*" element={<HomePage />} />
-          </Routes>
-        </div>
-      </div>
-    );
-  };
-
-export default MenuPage;
+export default function MenuPage() {
+  return <HomePage />;
+}

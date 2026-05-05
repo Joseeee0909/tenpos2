@@ -1,20 +1,21 @@
-import "./App.css";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { useContext } from 'react';
-import Register from './pages/register.jsx';
 import Login from './pages/login.jsx';
-import RolesPage from './pages/roles.jsx';
-import ProductsPage from './pages/product.jsx';
 import MenuPage from './pages/menu.jsx';
+import MesasPage from './pages/mesas.jsx';
+import PedidosPage from './pages/pedido.jsx';
+import Products from './pages/product.jsx';
+import RolesPage from './pages/roles.jsx';
+import UserPage from './pages/user.jsx';
+import Register from './pages/register.jsx';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import UserPage from './pages/user.jsx';
-import NavBar from './components/NavBar';
+import AppShell from './components/AppShell';
 
 function RoutesWrapper() {
   const { token } = useContext(AuthContext) || {};
 
-  // If there's no token, only allow /login. Redirect all other paths to /login.
+  // Si no hay token, solo el login está disponible
   if (!token) {
     return (
       <Routes>
@@ -25,54 +26,35 @@ function RoutesWrapper() {
     );
   }
 
-  // Authenticated routes
+  // Rutas autenticadas
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/menu" replace />} />
+      <Route path="/" element={<Navigate to="/inicio" replace />} />
       <Route path="/login" element={<Login />} />
-      <Route
-        path="/menu/*"
-        element={
-          <ProtectedRoute>
-            <MenuPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/users"
-        element={
-          <ProtectedRoute allowedRoles={["administrador", "admin", "root"]}>
-            <UserPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/productos"
-        element={
-          <ProtectedRoute allowedRoles={["administrador", "admin", "root"]}>
-            <ProductsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/register"
-        element={
-          <ProtectedRoute allowedRoles={["administrador", "admin", "root"]}>
-            <Register />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/roles"
-        element={
-          <ProtectedRoute allowedRoles={["administrador", "admin", "root"]}>
-            <RolesPage />
-          </ProtectedRoute>
-        }
-      />
-      {/* catch-all for authenticated users */}
-      <Route path="*" element={<Navigate to="/menu" replace />} />
+      <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
+        <Route path="/inicio" element={<MenuPage />} />
+        <Route path="/productos" element={<Products />} />
+        <Route
+          path="/roles"
+          element={(
+            <ProtectedRoute allowedRoles={['admin', 'root']}>
+              <RolesPage />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/usuarios"
+          element={(
+            <ProtectedRoute allowedRoles={['admin', 'root']}>
+              <UserPage />
+            </ProtectedRoute>
+          )}
+        />
+        <Route path="/register" element={<Register />} />
+        <Route path="/mesas" element={<MesasPage />} />
+        <Route path="/pedidos" element={<PedidosPage />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/inicio" replace />} />
     </Routes>
   );
 }

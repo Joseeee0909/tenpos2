@@ -1,7 +1,9 @@
 import jwt from "jsonwebtoken";
 import Usuario from "../classes/usuario.js";
+import dotenv from "dotenv";
+dotenv.config();
 
-const SECRET_KEY = "clave_secreta_temporal";
+const SECRET_KEY = process.env.SECRET_KEY;
 
 class AuthController {
 
@@ -41,10 +43,8 @@ class AuthController {
   static async login(req, res) {
     try {
       const { username, password } = req.body;
-      console.log("Intentando login de:", username);
 
       const user = await Usuario.obtenerPorUsuario(username);
-      console.log("Usuario encontrado:", user);
 
       if (!user)
         return res.status(404).json({ mensaje: "Usuario no encontrado" });
@@ -56,11 +56,7 @@ class AuthController {
         });
       }
 
-      console.log("Password recibido:", password);
-      console.log("Password en BD:", user.password);
-
       const valido = await Usuario.validarPassword(password, user.password);
-      console.log("Resultado bcrypt.compare:", valido);
 
       if (!valido)
         return res.status(401).json({ mensaje: "Contraseña incorrecta" });

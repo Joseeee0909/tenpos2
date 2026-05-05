@@ -1,0 +1,110 @@
+.ph-wrap {
+  padding: 18px 28px 14px;
+  background: #f1f5f9;
+}
+
+.ph-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+
+.page-header-card {
+  background: white;
+  border-radius: 16px;
+  border: 1.5px solid #e0e7ff;
+  padding: 20px 26px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.ph-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ph-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.ph-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.ph-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e1b4b;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+}
+
+.ph-sub {
+  font-size: 15px;
+  color: #818cf8;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.ph-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.ph-divider {
+  width: 1px;
+  height: 24px;
+  background: #e0e7ff;
+  flex-shrink: 0;
+}
+
+@media (max-width: 760px) {
+  .ph-wrap {
+    padding: 12px 12px 10px;
+  }
+
+  .page-header-card {
+    padding: 16px;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  .ph-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+  }
+
+  .ph-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .ph-title {
+    font-size: 19px;
+  }
+
+  .ph-sub {
+    font-size: 14px;
+  }
+
+  .ph-actions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+}

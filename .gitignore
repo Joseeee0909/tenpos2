@@ -1,0 +1,28 @@
+.env
+.env*
+/backend/.env
+backend/.env*
+**/.env/
+**/.env*
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
