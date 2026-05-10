@@ -2,9 +2,11 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { useContext } from 'react';
 import Login from './pages/login.jsx';
 import MenuPage from './pages/menu.jsx';
+import SettingsPage from './pages/settings.jsx';
 import MesasPage from './pages/mesas.jsx';
 import PedidosPage from './pages/pedido.jsx';
 import Products from './pages/product.jsx';
+import VentasPage from './pages/ventas.jsx';
 import RolesPage from './pages/roles.jsx';
 import UserPage from './pages/user.jsx';
 import Register from './pages/register.jsx';
@@ -36,6 +38,8 @@ function RoutesWrapper() {
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
         <Route path="/inicio" element={<MenuPage />} />
         <Route path="/productos" element={<Products />} />
+        <Route path="/ventas" element={<VentasPage />} />
+        <Route path="/configuracion" element={<SettingsPage />} />
         <Route
           path="/roles"
           element={(

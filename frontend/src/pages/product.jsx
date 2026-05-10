@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import authService from '../services/api';
 import PageHeader from '../components/PageHeader';
 import { UxToast } from '../components/UXFeedback';
+import { getStoredSettings } from '../utils/settings';
 import '../styles/product.css';
 
 const CATEGORIES = ['Comida', 'Bebida', 'Postre', 'Otro'];
@@ -31,6 +32,8 @@ const getStockState = (stock) => {
 };
 
 export default function ProductsPage() {
+  const [appSettings, setAppSettings] = useState(getStoredSettings());
+  const [lowStockNoticeKey, setLowStockNoticeKey] = useState('');
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentFilter, setCurrentFilter] = useState('all');
@@ -93,6 +96,15 @@ export default function ProductsPage() {
     loadProducts();
   }, []);
 
+  useEffect(() => {
+    const handler = (event) => {
+      const next = event?.detail || getStoredSettings();
+      setAppSettings(next);
+    };
+    window.addEventListener('app-settings-updated', handler);
+    return () => window.removeEventListener('app-settings-updated', handler);
+  }, []);
+
   const filteredProducts = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
     const base = products.filter((p) => {
@@ -116,14 +128,32 @@ export default function ProductsPage() {
     });
   }, [products, searchTerm, currentFilter, onlyAvailable, sortBy]);
 
+  const lowStockThreshold = Number(appSettings.lowStockThreshold || 0);
   const stats = useMemo(() => {
     return {
       total: products.length,
       active: products.filter((p) => p.disponible).length,
       inactive: products.filter((p) => !p.disponible).length,
-      lowStock: products.filter((p) => p.stock <= 3).length
+      lowStock: products.filter((p) => p.stock <= lowStockThreshold).length
     };
-  }, [products]);
+  }, [products, lowStockThreshold]);
+
+  useEffect(() => {
+    if (!appSettings.lowStockAlerts) return;
+    if (!stats.lowStock) {
+      if (lowStockNoticeKey) setLowStockNoticeKey('');
+      return;
+    }
+
+    const key = `${lowStockThreshold}-${stats.lowStock}`;
+    if (key === lowStockNoticeKey) return;
+
+    pushNotice(
+      `Alerta: ${stats.lowStock} producto(s) con stock bajo (<= ${lowStockThreshold}).`,
+      'warning'
+    );
+    setLowStockNoticeKey(key);
+  }, [appSettings.lowStockAlerts, lowStockThreshold, stats.lowStock, lowStockNoticeKey]);
 
   const openNew = () => {
     setEditingId(null);

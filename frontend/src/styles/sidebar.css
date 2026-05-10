@@ -92,6 +92,38 @@
   overflow-y: auto;
 }
 
+/* Integrate scrollbar with theme: thin, translucent, visible on hover */
+.shell-sidebar-menu {
+  -ms-overflow-style: none; /* IE 10+ - hide default */
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(255,255,255,0.06) transparent;
+}
+
+.shell-sidebar-menu::-webkit-scrollbar {
+  width: 8px;
+}
+
+.shell-sidebar-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.shell-sidebar-menu::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.06);
+  border-radius: 6px;
+  transition: background 0.15s ease, opacity 0.15s ease;
+  opacity: 0;
+}
+
+.shell-sidebar-menu:hover::-webkit-scrollbar-thumb {
+  opacity: 1;
+  background: rgba(255,255,255,0.12);
+}
+
+/* Firefox: change color on hover */
+.shell-sidebar-menu:hover {
+  scrollbar-color: rgba(255,255,255,0.12) transparent;
+}
+
 .shell-menu-item {
   display: flex;
   align-items: center;
