@@ -3,6 +3,7 @@ import path from 'path'
 import Factura from '../models/factura.model.js'
 import Pedido from '../models/pedidos.model.js'
 import Configuracion from '../models/configuracion.model.js'
+import TablaModel from '../models/tabla.model.js'
 
 const ensureDir = (dir) => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }) }
 const esc = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)')
@@ -60,6 +61,7 @@ export const checkoutPedido = async (req,res)=>{
   await factura.save()
   pedido.estado = 'entregado'
   await pedido.save()
+  await TablaModel.findOneAndUpdate({ numero: Number(pedido.mesa) }, { estado: 'disponible', pedido: null })
   res.json({ factura, pdfUrl: `/api/facturas/${numero}/pdf` })
 }
 
