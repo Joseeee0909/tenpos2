@@ -238,10 +238,6 @@ const checkoutPedido = async (data) => {
   return res.data;
 };
 
-const getVentas = async () => {
-  const res = await api.get('/ventas');
-  return res.data;
-};
 
 /* ---------------------------------------------------
    🔹 EXPORTAR TODO
