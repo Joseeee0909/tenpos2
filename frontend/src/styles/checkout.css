@@ -1,0 +1,18 @@
+/* Adaptado de plantilla entregada */
+*{box-sizing:border-box}
+.checkout-page{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:#f4f4f8;min-height:100vh;padding:16px}
+.page-header{background:white;border-radius:16px;padding:18px 22px;display:flex;align-items:center;gap:16px;border:1px solid #e8e8f0;margin-bottom:16px}
+.ph-icon{width:46px;height:46px;background:#10b981;border-radius:12px;display:flex;align-items:center;justify-content:center}
+.main-grid{display:grid;grid-template-columns:1fr 380px;gap:16px}
+.order-panel,.payment-card,.extra-card{background:white;border:1px solid #e8e8f0;border-radius:16px}
+.order-panel{padding:24px;display:flex;flex-direction:column;gap:18px}
+.order-items{max-height:360px;overflow:auto}.item-row{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #f8f8fc}
+.item-qty{width:32px;height:32px;background:#f0f0f8;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700}
+.item-info{flex:1}.item-price{font-weight:700}.order-summary{padding:16px 0;border-top:1px solid #f0f0f8}
+.summary-row{display:flex;justify-content:space-between}.summary-row.total .summary-value{font-size:20px;color:#4f46e5}
+.sidebar-panel{display:flex;flex-direction:column;gap:14px}.payment-card,.extra-card{padding:20px}
+.payment-methods{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.payment-opt{height:60px;border:1.5px solid #e0e0ee;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer}.payment-opt.selected{border-color:#4f46e5;background:#f5f3ff}
+.amount-input{width:100%;height:56px;border:1.5px solid #e0e0ee;border-radius:12px;font-size:24px;padding:0 16px;text-align:right}
+.complete-btn{width:100%;height:56px;background:#4f46e5;border:none;border-radius:12px;color:white;font-weight:700;cursor:pointer}
+.extra-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center}.modal-content{background:white;border-radius:14px;width:90%;max-width:460px;padding:20px}
