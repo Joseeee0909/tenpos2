@@ -25,6 +25,7 @@ export default function SidebarMenu() {
     { id: 'pedidos', icon: '📋', text: 'Pedidos', route: '/pedidos' },
     { id: 'ventas', icon: '💰', text: 'Ventas', route: '/ventas' },
     { id: 'mesas', icon: '🪑', text: 'Mesas', route: '/mesas' },
+    { id: 'configuracion', icon: '⚙️', text: 'Configuración', route: '/configuracion' },
     ...(canManageAccess
       ? [
           { id: 'roles', icon: '🔑', text: 'Roles', route: '/roles' },
