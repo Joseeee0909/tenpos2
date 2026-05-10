@@ -8,6 +8,7 @@ import productRoutes from './routes/product.routes.js'
 import pedidoRoutes from './routes/pedido.routes.js'
 import tablaRoutes from './routes/tabla.routes.js'
 import facturaRoutes from './routes/factura.routes.js'
+import ventaRoutes from './routes/venta.routes.js'
 
 const app = express()
 
@@ -30,5 +31,6 @@ app.use('/api/products', productRoutes)
 app.use('/api/pedidos', pedidoRoutes)
 app.use('/api/mesas', tablaRoutes)
 app.use('/api', facturaRoutes)
+app.use('/api/ventas', ventaRoutes)
 
 export default app

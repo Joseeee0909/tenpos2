@@ -193,6 +193,34 @@ const eliminarPedido = async (id) => {
   return res.data;
 };
 
+/* ---------------------------------------------------
+   🔹 VENTAS
+--------------------------------------------------- */
+const getVentas = async () => {
+  const res = await api.get('/ventas');
+  return res.data;
+};
+
+const getVenta = async (id) => {
+  const res = await api.get(`/ventas/${id}`);
+  return res.data;
+};
+
+const crearVenta = async (data) => {
+  const res = await api.post('/ventas', data);
+  return res.data;
+};
+
+const actualizarVenta = async (id, data) => {
+  const res = await api.put(`/ventas/${id}`, data);
+  return res.data;
+};
+
+const eliminarVenta = async (id) => {
+  const res = await api.delete(`/ventas/${id}`);
+  return res.data;
+};
+
 
 
 const getFacturacionConfig = async () => {
@@ -249,5 +277,9 @@ export default {
   getFacturacionConfig,
   saveFacturacionConfig,
   checkoutPedido,
-  getVentas
+  getVentas,
+  getVenta,
+  crearVenta,
+  actualizarVenta,
+  eliminarVenta
 };
