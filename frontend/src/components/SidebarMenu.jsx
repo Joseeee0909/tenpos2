@@ -23,13 +23,15 @@ export default function SidebarMenu() {
     { id: 'inicio', icon: '🏠', text: 'Inicio', route: '/inicio' },
     { id: 'productos', icon: '📦', text: 'Productos', route: '/productos' },
     { id: 'pedidos', icon: '📋', text: 'Pedidos', route: '/pedidos' },
+    { id: 'ventas', icon: '💰', text: 'Ventas', route: '/ventas' },
     { id: 'mesas', icon: '🪑', text: 'Mesas', route: '/mesas' },
     ...(canManageAccess
       ? [
           { id: 'roles', icon: '🔑', text: 'Roles', route: '/roles' },
           { id: 'usuarios', icon: '👥', text: 'Usuarios', route: '/usuarios' }
         ]
-      : [])
+      : []),
+    { id: 'config', icon: '⚙️', text: 'Configuración', route: '/configuracion' }
   ];
 
   const handleLogout = () => {
