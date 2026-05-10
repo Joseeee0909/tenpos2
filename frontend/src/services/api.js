@@ -194,6 +194,27 @@ const eliminarPedido = async (id) => {
 };
 
 
+
+const getFacturacionConfig = async () => {
+  const res = await api.get('/configuracion/facturacion');
+  return res.data;
+};
+
+const saveFacturacionConfig = async (data) => {
+  const res = await api.put('/configuracion/facturacion', data);
+  return res.data;
+};
+
+const checkoutPedido = async (data) => {
+  const res = await api.post('/ventas/checkout', data);
+  return res.data;
+};
+
+const getVentas = async () => {
+  const res = await api.get('/ventas');
+  return res.data;
+};
+
 /* ---------------------------------------------------
    🔹 EXPORTAR TODO
 --------------------------------------------------- */
@@ -224,5 +245,9 @@ export default {
   getPedido,
   crearPedido,
   actualizarPedido,
-  eliminarPedido
+  eliminarPedido,
+  getFacturacionConfig,
+  saveFacturacionConfig,
+  checkoutPedido,
+  getVentas
 };
