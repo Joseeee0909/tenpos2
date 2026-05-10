@@ -288,6 +288,12 @@ export default function MesasPage() {
     closeActionMesa();
   };
 
+  const goCheckout = () => {
+    if (!actionMesa?.mesa) return;
+    navigate(`/checkout?mesa=${actionMesa.mesa.numero}`);
+    closeActionMesa();
+  };
+
   const handleQuickPay = async () => {
     if (!actionMesa?.mesa) return;
 
@@ -624,10 +630,9 @@ export default function MesasPage() {
 
               <div className="mesa-modal-divider"></div>
 
-              <button className="mesa-modal-btn btn-disabled" onClick={handleQuickPay}>
+              <button className="mesa-modal-btn btn-primary" onClick={goCheckout}>
                 <svg viewBox="0 0 16 16" fill="none" stroke="#cbd5e1" strokeWidth="1.8"><rect x="2" y="4" width="12" height="9" rx="1.5"/><path d="M5 4V3h6v1"/><path d="M5 9h2M10 9h1"/></svg>
-                Pagar
-                <span className="soon-tag">Proximamente</span>
+                Ir a pagar
               </button>
             </div>
           </div>
