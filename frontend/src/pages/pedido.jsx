@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import authService from '../services/api';
 import PageHeader from '../components/PageHeader';
 import { UxConfirm, UxToast } from '../components/UXFeedback';
+import { getStoredSettings } from '../utils/settings';
 import '../styles/pedido.css';
 
 const STATUS_SEQUENCE = ['pendiente', 'preparando', 'listo', 'entregado'];
@@ -14,7 +15,35 @@ const STATUS_LABEL = {
 };
 
 const toCurrency = (value) => `$${Math.round(Number(value || 0)).toLocaleString('es-CO')}`;
-const taxFromSubtotal = (subtotal) => Math.round(Number(subtotal || 0) * 0.16);
+
+const readTaxSettings = () => {
+  const stored = getStoredSettings();
+  const vatPercent = Number(stored.vatPercent ?? 19);
+  const applyVat = stored.applyVat !== false;
+  const pricesIncludeVat = stored.pricesIncludeVat !== false;
+  return { vatPercent, applyVat, pricesIncludeVat };
+};
+
+const buildTotals = (sum, taxSettings) => {
+  const base = Math.round(Number(sum || 0));
+  const vatRate = taxSettings.applyVat ? taxSettings.vatPercent / 100 : 0;
+
+  if (!vatRate) {
+    return { subtotal: base, tax: 0, total: base };
+  }
+
+  if (taxSettings.pricesIncludeVat) {
+    const subtotal = Math.round(base / (1 + vatRate));
+    let tax = Math.round(subtotal * vatRate);
+    const correction = base - (subtotal + tax);
+    if (correction !== 0) tax += correction;
+    return { subtotal, tax, total: base };
+  }
+
+  const subtotal = base;
+  const tax = Math.round(subtotal * vatRate);
+  return { subtotal, tax, total: subtotal + tax };
+};
 const getTime = (dateValue) => {
   const date = new Date(dateValue || Date.now());
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
@@ -58,6 +87,7 @@ export default function PedidosPage() {
   const [responsableFormValue, setResponsableFormValue] = useState('');
   const [notice, setNotice] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
+  const [taxSettings, setTaxSettings] = useState(readTaxSettings);
 
   const pushNotice = (message, type = 'info') => {
     setNotice({ message, type, id: Date.now() });
@@ -94,6 +124,19 @@ export default function PedidosPage() {
     return map;
   }, [products]);
 
+  useEffect(() => {
+    const handleSettings = () => setTaxSettings(readTaxSettings());
+    const handleStorage = (event) => {
+      if (event.key === 'app_settings') handleSettings();
+    };
+    window.addEventListener('app-settings-updated', handleSettings);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('app-settings-updated', handleSettings);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
   const normalizedOrders = useMemo(() => {
     return orders.map((o) => {
       const items = Array.isArray(o.productos)
@@ -117,9 +160,8 @@ export default function PedidosPage() {
           })
         : [];
 
-      const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
-      const total = Number(o.total ?? (subtotal + taxFromSubtotal(subtotal)));
-
+      const sumWithVat = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+      const totals = buildTotals(sumWithVat, taxSettings);
       return {
         _id: o._id,
         id: `#${String(o._id || '').slice(-4).toUpperCase()}`,
@@ -130,12 +172,12 @@ export default function PedidosPage() {
         time: getTime(o.fecha),
         fecha: o.fecha,
         items,
-        subtotal,
-        tax: taxFromSubtotal(subtotal),
-        total
+        subtotal: totals.subtotal,
+        tax: totals.tax,
+        total: totals.total
       };
     });
-  }, [orders, productById]);
+  }, [orders, productById, taxSettings]);
 
   const selectedOrder = useMemo(
     () => normalizedOrders.find((o) => o._id === selectedOrderId) || null,
@@ -177,12 +219,14 @@ export default function PedidosPage() {
     });
   }, [products, selectedCategory, productSearch]);
 
-  const cartSubtotal = useMemo(
+  const cartSumWithVat = useMemo(
     () => cart.reduce((sum, i) => sum + Number(i.price || 0) * Number(i.qty || 0), 0),
     [cart]
   );
-  const cartTax = useMemo(() => taxFromSubtotal(cartSubtotal), [cartSubtotal]);
-  const cartTotal = useMemo(() => cartSubtotal + cartTax, [cartSubtotal, cartTax]);
+  const cartTotals = useMemo(() => buildTotals(cartSumWithVat, taxSettings), [cartSumWithVat, taxSettings]);
+  const cartSubtotal = cartTotals.subtotal;
+  const cartTax = cartTotals.tax;
+  const cartTotal = cartTotals.total;
 
   const loadAll = async () => {
     try {
@@ -604,7 +648,7 @@ export default function PedidosPage() {
 
                     <div className="prev-totals">
                       <div className="prev-tot-row"><span className="ptl">Subtotal</span><span className="ptv">{toCurrency(selectedOrder.subtotal)}</span></div>
-                      <div className="prev-tot-row"><span className="ptl">IVA (16%)</span><span className="ptv">{toCurrency(selectedOrder.tax)}</span></div>
+                      <div className="prev-tot-row"><span className="ptl">IVA ({taxSettings.applyVat ? taxSettings.vatPercent : 0}%)</span><span className="ptv">{toCurrency(selectedOrder.tax)}</span></div>
                       <div className="prev-grand-row"><span className="pgl">Total</span><span className="pgv">{toCurrency(selectedOrder.total)}</span></div>
                     </div>
                   </div>
@@ -740,7 +784,7 @@ export default function PedidosPage() {
 
               <div className="cart-foot">
                 <div className="cf-row"><span className="cfl">Subtotal</span><span className="cfv">{toCurrency(cartSubtotal)}</span></div>
-                <div className="cf-row"><span className="cfl">IVA (16%)</span><span className="cfv">{toCurrency(cartTax)}</span></div>
+                <div className="cf-row"><span className="cfl">IVA ({taxSettings.applyVat ? taxSettings.vatPercent : 0}%)</span><span className="cfv">{toCurrency(cartTax)}</span></div>
                 <div className="cf-grand"><span className="cfgl">Total a pagar</span><span className="cfgv">{toCurrency(cartTotal)}</span></div>
                 <button className="confirm-btn" type="button" onClick={saveOrder} disabled={saving}>
                   {saving ? 'Guardando...' : 'Confirmar pedido'}
