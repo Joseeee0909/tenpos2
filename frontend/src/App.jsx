@@ -10,6 +10,8 @@ import VentasPage from './pages/ventas.jsx';
 import RolesPage from './pages/roles.jsx';
 import UserPage from './pages/user.jsx';
 import Register from './pages/register.jsx';
+import CheckoutPage from './pages/checkout.jsx';
+import ConfiguracionPage from './pages/configuracion.jsx';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppShell from './components/AppShell';
@@ -57,6 +59,8 @@ function RoutesWrapper() {
         <Route path="/register" element={<Register />} />
         <Route path="/mesas" element={<MesasPage />} />
         <Route path="/pedidos" element={<PedidosPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/configuracion" element={<ConfiguracionPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/inicio" replace />} />
     </Routes>
