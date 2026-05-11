@@ -11,6 +11,7 @@ const facturaSchema = new mongoose.Schema({
   total: Number,
   metodoPago: String,
   pedidoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Pedido' },
+  mesero: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   mesa: Number,
   pdfPath: String,
   fecha: { type: Date, default: Date.now }

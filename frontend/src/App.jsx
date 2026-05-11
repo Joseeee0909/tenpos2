@@ -11,7 +11,6 @@ import RolesPage from './pages/roles.jsx';
 import UserPage from './pages/user.jsx';
 import Register from './pages/register.jsx';
 import CheckoutPage from './pages/checkout.jsx';
-import ConfiguracionPage from './pages/configuracion.jsx';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppShell from './components/AppShell';
@@ -37,13 +36,20 @@ function RoutesWrapper() {
       <Route path="/login" element={<Login />} />
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
         <Route path="/inicio" element={<MenuPage />} />
-        <Route path="/productos" element={<Products />} />
+        <Route
+          path="/productos"
+          element={(
+            <ProtectedRoute allowedPermissions={['ver_productos', 'gestionar_productos']}>
+              <Products />
+            </ProtectedRoute>
+          )}
+        />
         <Route path="/ventas" element={<VentasPage />} />
         <Route path="/configuracion" element={<SettingsPage />} />
         <Route
           path="/roles"
           element={(
-            <ProtectedRoute allowedRoles={['admin', 'root']}>
+            <ProtectedRoute allowedRoles={['admin', 'root']} allowedPermissions={['gestionar_roles']}>
               <RolesPage />
             </ProtectedRoute>
           )}
@@ -51,16 +57,29 @@ function RoutesWrapper() {
         <Route
           path="/usuarios"
           element={(
-            <ProtectedRoute allowedRoles={['admin', 'root']}>
+            <ProtectedRoute allowedRoles={['admin', 'root']} allowedPermissions={['gestionar_usuarios']}>
               <UserPage />
             </ProtectedRoute>
           )}
         />
         <Route path="/register" element={<Register />} />
-        <Route path="/mesas" element={<MesasPage />} />
-        <Route path="/pedidos" element={<PedidosPage />} />
+        <Route
+          path="/mesas"
+          element={(
+            <ProtectedRoute allowedPermissions={['ver_mesas', 'gestionar_mesas']}>
+              <MesasPage />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/pedidos"
+          element={(
+            <ProtectedRoute allowedPermissions={['ver_pedidos', 'crear_pedidos', 'editar_pedidos']}>
+              <PedidosPage />
+            </ProtectedRoute>
+          )}
+        />
         <Route path="/checkout" element={<CheckoutPage />} />
-        <Route path="/configuracion" element={<ConfiguracionPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/inicio" replace />} />
     </Routes>

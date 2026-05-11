@@ -76,8 +76,8 @@ const getRoles = async () => {
   return res.data.roles;
 };
 
-const createRole = async ({ nombre, descripcion }) => {
-  const res = await api.post("/roles", { nombre, descripcion });
+const createRole = async (data) => {
+  const res = await api.post("/roles", data);
   return res.data;
 };
 

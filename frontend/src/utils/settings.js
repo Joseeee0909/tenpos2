@@ -5,7 +5,14 @@ export const DEFAULT_SETTINGS = {
   applyVat: true,
   pricesIncludeVat: true,
   lowStockAlerts: true,
-  lowStockThreshold: 5
+  lowStockThreshold: 5,
+  tipSuggested: false,
+  tipPercent: 10,
+  payCash: true,
+  payCard: true,
+  payTransfer: true,
+  payQr: true,
+  menuOrder: ['inicio','productos','pedidos','ventas','mesas','roles','usuarios','config']
 };
 
 export const getStoredSettings = () => {

@@ -8,6 +8,42 @@ import TablaModel from '../models/tabla.model.js'
 const ensureDir = (dir) => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }) }
 const esc = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)')
 
+const readTaxSettings = (payload = {}) => {
+  const tax = payload.taxSettings || {}
+  const vatPercent = Number(tax.vatPercent ?? 19)
+  const applyVat = tax.applyVat !== false
+  const pricesIncludeVat = tax.pricesIncludeVat !== false
+  return { vatPercent, applyVat, pricesIncludeVat }
+}
+
+const readTaxSettingsFromQuery = (query = {}) => {
+  const vatPercent = Number(query.vatPercent ?? 19)
+  const applyVat = String(query.applyVat ?? 'true').toLowerCase() !== 'false'
+  const pricesIncludeVat = String(query.pricesIncludeVat ?? 'true').toLowerCase() !== 'false'
+  return { vatPercent, applyVat, pricesIncludeVat }
+}
+
+const buildTotals = (sum, taxSettings) => {
+  const base = Math.round(Number(sum || 0))
+  const vatRate = taxSettings.applyVat ? taxSettings.vatPercent / 100 : 0
+
+  if (!vatRate) {
+    return { subtotal: base, ivaTotal: 0, total: base }
+  }
+
+  if (taxSettings.pricesIncludeVat) {
+    const subtotal = Math.round(base / (1 + vatRate))
+    let ivaTotal = Math.round(subtotal * vatRate)
+    const correction = base - (subtotal + ivaTotal)
+    if (correction !== 0) ivaTotal += correction
+    return { subtotal, ivaTotal, total: base }
+  }
+
+  const subtotal = base
+  const ivaTotal = Math.round(subtotal * vatRate)
+  return { subtotal, ivaTotal, total: subtotal + ivaTotal }
+}
+
 const buildPdfBuffer = (lines) => {
   const content = ['BT','/F1 11 Tf','40 790 Td']
   lines.forEach((l, i) => { if (i>0) content.push('0 -16 Td'); content.push(`(${esc(l)}) Tj`) })
@@ -39,20 +75,63 @@ export const saveConfig = async (req,res)=>{
 }
 
 export const checkoutPedido = async (req,res)=>{
-  const { pedidoId, cliente, metodoPago='Efectivo', incluirPropina=false } = req.body
+  const { pedidoId, cliente, metodoPago='Efectivo', incluirPropina=false, propinaPercent=10 } = req.body
   const pedido = await Pedido.findById(pedidoId)
   if(!pedido) return res.status(404).json({ error:'Pedido no encontrado' })
   const configDoc = await Configuracion.findOne({ clave:'facturacion' }) || await Configuracion.create({ clave:'facturacion' })
-  const subtotal = Number(pedido.total || 0)
-  const ivaTotal = Math.round(subtotal*0.19)
-  const propina = incluirPropina ? Math.round(subtotal*0.1) : 0
-  const total = subtotal + ivaTotal + propina
+  const taxSettings = readTaxSettings(req.body || {})
+  const baseTotal = Number(pedido.total || 0)
+  const totals = buildTotals(baseTotal, taxSettings)
+  const tipRate = Number(propinaPercent || 0) / 100
+  const rawTip = totals.subtotal * tipRate
+  const propina = incluirPropina ? Math.round(rawTip / 100) * 100 : 0
+  const total = totals.total + propina
   const numero = String(Date.now())
   const items = (pedido.productos||[]).map(i=>({ nombre:i.nombre, cantidad:Number(i.cantidad||1), precio:Number(i.precio||0) }))
-  const factura = await Factura.create({ numero, emisor: configDoc.facturacion, cliente: cliente || { nombre:'Consumidor Final', documento:'000000' }, items, subtotal, ivaTotal, propina, total, metodoPago, pedidoId: pedido._id, mesa: pedido.mesa })
-  const lines = [configDoc.facturacion.nombre, configDoc.facturacion.nit, configDoc.facturacion.direccion, configDoc.facturacion.telefono, configDoc.facturacion.resolucion, configDoc.facturacion.responsable, '----------------------------', `Factura de venta: ${configDoc.facturacion.prefijo}`, `Fecha: ${new Date().toLocaleString('es-CO')}`, `Cliente: ${factura.cliente.nombre}`, `Doc: ${factura.cliente.documento}`, '----------------------------', 'CT  Descripcion        Valor']
+  const clienteData = cliente && typeof cliente === 'object'
+    ? { nombre: cliente.nombre || 'Consumidor Final', documento: cliente.documento || '000000' }
+    : { nombre: 'Consumidor Final', documento: '000000' }
+  const factura = await Factura.create({
+    numero,
+    emisor: configDoc.facturacion,
+    cliente: clienteData,
+    items,
+    subtotal: totals.subtotal,
+    ivaTotal: totals.ivaTotal,
+    propina,
+    total,
+    metodoPago,
+    pedidoId: pedido._id,
+    mesero: pedido.mesero,
+    mesa: pedido.mesa
+  })
+
+  const em = configDoc.facturacion || {}
+  const lines = []
+  const pushIf = (label, value) => { if (value) lines.push(`${label}${value}`) }
+
+  lines.push(em.nombre || 'FACTURA')
+  pushIf('', em.nit)
+  pushIf('', em.direccion)
+  pushIf('Tel: ', em.telefono)
+  pushIf('Resolucion DIAN ', em.resolucion)
+  pushIf('Autorizada el: ', em.autorizada)
+  pushIf('Prefijo POS Del: ', em.prefijo)
+  pushIf('', em.responsable)
+  lines.push('----------------------------')
+  lines.push(`Factura de venta: ${em.prefijo || 'POS'} - ${numero}`)
+  lines.push(`Fecha: ${new Date().toLocaleString('es-CO')}`)
+  lines.push(`Cliente: ${factura.cliente.nombre}`)
+  lines.push(`C.C / NIT : ${factura.cliente.documento}`)
+  lines.push('----------------------------')
+  lines.push('CT  Descripcion        Valor')
   items.forEach(i=>lines.push(`${i.cantidad}  ${i.nombre.slice(0,14).padEnd(14,' ')} ${Math.round(i.precio*i.cantidad)}`))
-  lines.push('----------------------------', `SUBTOTAL: ${subtotal}`, `IVA: ${ivaTotal}`, `PROPINA: ${propina}`, `TOTAL: ${total}`, `Pago: ${metodoPago}`)
+  lines.push('----------------------------')
+  lines.push(`SUBTOTAL: ${totals.subtotal}`)
+  lines.push(`IVA: ${totals.ivaTotal}`)
+  lines.push(`PROPINA: ${propina}`)
+  lines.push(`TOTAL: ${total}`)
+  lines.push(`Forma de Pago: ${metodoPago}`)
   const dir = path.join(process.cwd(), 'storage', 'facturas')
   ensureDir(dir)
   const filePath = path.join(dir, `${numero}.pdf`)
@@ -65,7 +144,58 @@ export const checkoutPedido = async (req,res)=>{
   res.json({ factura, pdfUrl: `/api/facturas/${numero}/pdf` })
 }
 
-export const listFacturas = async (_req,res)=> res.json(await Factura.find().sort({ fecha:-1 }).limit(200))
+export const previewFactura = async (req, res) => {
+  const { pedidoId } = req.query || {}
+  if (!pedidoId) return res.status(400).json({ error: 'pedidoId requerido' })
+
+  const pedido = await Pedido.findById(pedidoId)
+  if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' })
+
+  const configDoc = await Configuracion.findOne({ clave:'facturacion' }) || await Configuracion.create({ clave:'facturacion' })
+  const taxSettings = readTaxSettingsFromQuery(req.query)
+  const baseTotal = Number(pedido.total || 0)
+  const totals = buildTotals(baseTotal, taxSettings)
+  const tipRate = Number(req.query.propinaPercent || 0) / 100
+  const rawTip = totals.subtotal * tipRate
+  const incluirPropina = String(req.query.incluirPropina || 'false').toLowerCase() === 'true'
+  const propina = incluirPropina ? Math.round(rawTip / 100) * 100 : 0
+  const total = totals.total + propina
+  const numero = String(Date.now())
+  const items = (pedido.productos||[]).map(i=>({ nombre:i.nombre, cantidad:Number(i.cantidad||1), precio:Number(i.precio||0) }))
+
+  const em = configDoc.facturacion || {}
+  const lines = []
+  const pushIf = (label, value) => { if (value) lines.push(`${label}${value}`) }
+
+  lines.push(em.nombre || 'PRECUENTA')
+  pushIf('', em.nit)
+  pushIf('', em.direccion)
+  pushIf('Tel: ', em.telefono)
+  lines.push('----------------------------')
+  lines.push(`Precuenta: ${em.prefijo || 'POS'} - ${numero}`)
+  lines.push(`Fecha: ${new Date().toLocaleString('es-CO')}`)
+  lines.push(`Mesa: ${pedido.mesa || '-'}`)
+  lines.push(`Pedido: ${String(pedido._id || '').slice(-6).toUpperCase()}`)
+  lines.push('----------------------------')
+  lines.push('CT  Descripcion        Valor')
+  items.forEach(i=>lines.push(`${i.cantidad}  ${i.nombre.slice(0,14).padEnd(14,' ')} ${Math.round(i.precio*i.cantidad)}`))
+  lines.push('----------------------------')
+  lines.push(`SUBTOTAL: ${totals.subtotal}`)
+  lines.push(`IVA: ${totals.ivaTotal}`)
+  lines.push(`PROPINA: ${propina}`)
+  lines.push(`TOTAL: ${total}`)
+
+  res.setHeader('Content-Type','application/pdf')
+  res.send(buildPdfBuffer(lines))
+}
+
+export const listFacturas = async (_req,res)=> {
+  const facturas = await Factura.find()
+    .populate('mesero')
+    .sort({ fecha:-1 })
+    .limit(200)
+  res.json(facturas)
+}
 export const getFacturaPdf = async (req,res)=>{
   const f = await Factura.findOne({ numero:req.params.numero })
   if(!f?.pdfPath || !fs.existsSync(f.pdfPath)) return res.status(404).json({ error:'PDF no encontrado' })

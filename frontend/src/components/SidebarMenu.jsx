@@ -1,7 +1,8 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { UxConfirm } from './UXFeedback';
+import { getStoredSettings } from '../utils/settings';
 import '../styles/sidebar.css';
 
 export default function SidebarMenu() {
@@ -10,30 +11,72 @@ export default function SidebarMenu() {
   const { user } = useContext(AuthContext) || {};
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [appSettings, setAppSettings] = useState(getStoredSettings());
 
   const normalizeRole = (role) => {
     const raw = String(role || '').trim().toLowerCase();
     if (raw === 'administrador') return 'admin';
     return raw;
   };
+  const roleKey = normalizeRole(user?.rol);
+  const isAdmin = ['admin', 'root'].includes(roleKey);
+  const userPerms = Array.isArray(user?.permisos) ? user.permisos : [];
 
-  const canManageAccess = ['admin', 'root'].includes(normalizeRole(user?.rol));
+  const PERM_BY_ITEM = {
+    productos: ['ver_productos', 'gestionar_productos'],
+    pedidos: ['ver_pedidos', 'crear_pedidos', 'editar_pedidos'],
+    mesas: ['ver_mesas', 'gestionar_mesas'],
+    roles: ['gestionar_roles'],
+    usuarios: ['gestionar_usuarios']
+  };
 
-  const menuItems = [
-    { id: 'inicio', icon: '🏠', text: 'Inicio', route: '/inicio' },
-    { id: 'productos', icon: '📦', text: 'Productos', route: '/productos' },
-    { id: 'pedidos', icon: '📋', text: 'Pedidos', route: '/pedidos' },
-    { id: 'ventas', icon: '💰', text: 'Ventas', route: '/ventas' },
-    { id: 'mesas', icon: '🪑', text: 'Mesas', route: '/mesas' },
-    { id: 'configuracion', icon: '⚙️', text: 'Configuración', route: '/configuracion' },
-    ...(canManageAccess
-      ? [
-          { id: 'roles', icon: '🔑', text: 'Roles', route: '/roles' },
-          { id: 'usuarios', icon: '👥', text: 'Usuarios', route: '/usuarios' }
-        ]
-      : []),
-    { id: 'config', icon: '⚙️', text: 'Configuración', route: '/configuracion' }
-  ];
+  useEffect(() => {
+    const handleSettings = (event) => {
+      const next = event?.detail || getStoredSettings();
+      setAppSettings(next);
+    };
+    const handleStorage = (event) => {
+      if (event.key === 'app_settings') handleSettings();
+    };
+    window.addEventListener('app-settings-updated', handleSettings);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('app-settings-updated', handleSettings);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  const menuItems = useMemo(() => {
+    const baseItems = [
+      { id: 'inicio', icon: '🏠', text: 'Inicio', route: '/inicio' },
+      { id: 'productos', icon: '📦', text: 'Productos', route: '/productos' },
+      { id: 'pedidos', icon: '📋', text: 'Pedidos', route: '/pedidos' },
+      { id: 'ventas', icon: '💰', text: 'Ventas', route: '/ventas' },
+      { id: 'mesas', icon: '🪑', text: 'Mesas', route: '/mesas' },
+      { id: 'roles', icon: '🔑', text: 'Roles', route: '/roles' },
+      { id: 'usuarios', icon: '👥', text: 'Usuarios', route: '/usuarios' },
+      { id: 'config', icon: '⚙️', text: 'Configuración', route: '/configuracion' }
+    ];
+
+    const allowed = baseItems.filter((item) => {
+      const required = PERM_BY_ITEM[item.id];
+      if (!required) return true;
+      if (isAdmin) return true;
+      return required.some((perm) => userPerms.includes(perm));
+    });
+
+    const order = Array.isArray(appSettings.menuOrder) && appSettings.menuOrder.length
+      ? appSettings.menuOrder
+      : baseItems.map((item) => item.id);
+
+    const byId = new Map(allowed.map((item) => [item.id, item]));
+    const ordered = [
+      ...order.map((id) => byId.get(id)).filter(Boolean),
+      ...allowed.filter((item) => !order.includes(item.id))
+    ];
+
+    return ordered;
+  }, [appSettings.menuOrder, isAdmin, userPerms.join('|')]);
 
   const handleLogout = () => {
     setConfirmLogout(true);

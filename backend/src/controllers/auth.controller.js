@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import Usuario from "../classes/usuario.js";
+import RolModel from "../models/rol.model.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -61,11 +62,15 @@ class AuthController {
       if (!valido)
         return res.status(401).json({ mensaje: "Contraseña incorrecta" });
 
+      const rolDoc = await RolModel.findOne({ nombre: user.rol });
+      const permisos = Array.isArray(rolDoc?.permisos) ? rolDoc.permisos : [];
+
       // Crear token
       const token = jwt.sign(
         {
           username: user.username,
-          rol: user.rol
+          rol: user.rol,
+          permisos
         },
         SECRET_KEY,
         { expiresIn: "8h" }
@@ -75,7 +80,8 @@ class AuthController {
         mensaje: "Inicio de sesión exitoso",
         usuario: {
           username: user.username,
-          rol: user.rol
+          rol: user.rol,
+          permisos
         },
         token
       });

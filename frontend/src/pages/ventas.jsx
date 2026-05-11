@@ -27,6 +27,18 @@ const STATUS_STYLE = {
   reembolsada: 'refunded'
 };
 
+const normalizeCliente = (cliente) => {
+  if (!cliente) return { nombre: 'Consumidor Final', documento: '' };
+  if (typeof cliente === 'string') return { nombre: cliente, documento: '' };
+  if (typeof cliente === 'object') {
+    return {
+      nombre: cliente.nombre || 'Consumidor Final',
+      documento: cliente.documento || ''
+    };
+  }
+  return { nombre: String(cliente), documento: '' };
+};
+
 export default function VentasPage() {
   const [sales, setSales] = useState([]);
   const [notice, setNotice] = useState(null);
@@ -64,20 +76,25 @@ export default function VentasPage() {
 
   const normalizedSales = useMemo(() => {
     return sales.map((sale) => {
-      const items = Array.isArray(sale.productos) ? sale.productos : [];
+      const items = Array.isArray(sale.items)
+        ? sale.items
+        : (Array.isArray(sale.productos) ? sale.productos : []);
       const itemCount = items.reduce((sum, i) => sum + Number(i.cantidad || 0), 0);
+      const cliente = normalizeCliente(sale.cliente);
+      const meseroNombre = sale.mesero?.nombre || sale.mesero?.username || '';
       return {
         _id: sale._id,
         numero: sale.numero || `#${String(sale._id || '').slice(-4).toUpperCase()}`,
         fecha: sale.fecha,
         mesa: sale.mesa,
-        cliente: sale.cliente || 'Mesa',
-        mesero: sale.mesero,
+        cliente: cliente.nombre,
+        clienteDocumento: cliente.documento,
+        mesero: meseroNombre,
         items,
         itemCount,
         total: Number(sale.total || 0),
         subtotal: Number(sale.subtotal || 0),
-        iva: Number(sale.iva || 0),
+        iva: Number(sale.ivaTotal ?? sale.iva ?? 0),
         propina: Number(sale.propina || 0),
         metodoPago: sale.metodoPago || 'Efectivo',
         estado: String(sale.estado || 'completada').toLowerCase()
@@ -167,6 +184,15 @@ export default function VentasPage() {
 
   const openDetail = (sale) => setSelected(sale);
   const closeDetail = () => setSelected(null);
+
+  const openFacturaPdf = (numero) => {
+    if (!numero) {
+      pushNotice('No hay numero de factura disponible.', 'warning');
+      return;
+    }
+    const baseUrl = import.meta.env.VITE_API_URL || '';
+    window.open(`${baseUrl}/facturas/${numero}/pdf`, '_blank', 'noopener');
+  };
 
   return (
     <div className="sales-page">
@@ -367,7 +393,7 @@ export default function VentasPage() {
                       <circle cx="8" cy="8" r="2" />
                     </svg>
                   </button>
-                  <button className="action-btn-small" type="button" onClick={() => window.print()} title="Imprimir">
+                  <button className="action-btn-small" type="button" onClick={() => openFacturaPdf(sale.numero)} title="Imprimir">
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M4 4V2h8v2M4 10H2V5h12v5h-2M4 10h8v2H4v-2z" />
                     </svg>
@@ -412,11 +438,19 @@ export default function VentasPage() {
                   </div>
                   <div>
                     <div className="detail-label">Cliente</div>
-                    <div className="detail-value">{selected.cliente || 'Mesa'}</div>
+                    <div className="detail-value">{selected.cliente || 'Consumidor Final'}</div>
+                  </div>
+                  <div>
+                    <div className="detail-label">Documento</div>
+                    <div className="detail-value">{selected.clienteDocumento || '000000'}</div>
                   </div>
                   <div>
                     <div className="detail-label">Mesa</div>
                     <div className="detail-value">{selected.mesa || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="detail-label">Mesero</div>
+                    <div className="detail-value">{selected.mesero || 'Sin asignar'}</div>
                   </div>
                   <div>
                     <div className="detail-label">Estado</div>
@@ -482,7 +516,7 @@ export default function VentasPage() {
             </div>
             <div className="modal-footer">
               <button className="btn-modal secondary" type="button" onClick={closeDetail}>Cerrar</button>
-              <button className="btn-modal primary" type="button" onClick={() => window.print()}>
+              <button className="btn-modal primary" type="button" onClick={() => openFacturaPdf(selected?.numero)}>
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M4 4V2h8v2M4 10H2V5h12v5h-2M4 10h8v2H4v-2z" />
                 </svg>

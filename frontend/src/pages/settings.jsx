@@ -1,7 +1,30 @@
 import { useEffect, useMemo, useState } from 'react';
+import authService from '../services/api';
 import { UxToast } from '../components/UXFeedback';
 import { DEFAULT_SETTINGS, getStoredSettings, saveStoredSettings } from '../utils/settings';
 import '../styles/settings.css';
+
+const FACTURACION_DEFAULTS = {
+  nombre: 'SIIGO S.A.S',
+  nit: '800200100-0',
+  direccion: 'Cali, Colombia',
+  telefono: '',
+  resolucion: '',
+  autorizada: '',
+  prefijo: 'POS - 1',
+  responsable: 'Responsable de IVA'
+};
+
+const MENU_ORDER_ITEMS = [
+  { id: 'inicio', label: 'Inicio' },
+  { id: 'productos', label: 'Productos' },
+  { id: 'pedidos', label: 'Pedidos' },
+  { id: 'ventas', label: 'Ventas' },
+  { id: 'mesas', label: 'Mesas' },
+  { id: 'roles', label: 'Roles' },
+  { id: 'usuarios', label: 'Usuarios' },
+  { id: 'config', label: 'Configuracion' }
+];
 
 const NAV_ITEMS = [
   {
@@ -84,10 +107,10 @@ const SECTIONS = {
       {
         label: 'Informacion del Negocio',
         items: [
-          { type: 'input', name: 'Nombre del restaurante', hint: 'Se mostrara en todas las facturas', value: 'TenPos Restaurante', available: false },
-          { type: 'input', name: 'Direccion', hint: 'Direccion completa del establecimiento', value: 'Calle 123 #45-67, Cali', available: false },
-          { type: 'input', name: 'NIT / RUT', hint: 'Numero de identificacion tributaria', value: '900123456-7', available: false },
-          { type: 'input', name: 'Telefono de contacto', hint: 'Numero principal del restaurante', value: '+57 300 123 4567', available: false }
+          { type: 'input', name: 'Nombre del restaurante', hint: 'Se mostrara en todas las facturas', key: 'nombre', source: 'facturacion', inputType: 'text', available: true },
+          { type: 'input', name: 'Direccion', hint: 'Direccion completa del establecimiento', key: 'direccion', source: 'facturacion', inputType: 'text', available: true },
+          { type: 'input', name: 'NIT / RUT', hint: 'Numero de identificacion tributaria', key: 'nit', source: 'facturacion', inputType: 'text', available: true },
+          { type: 'input', name: 'Telefono de contacto', hint: 'Numero principal del restaurante', key: 'telefono', source: 'facturacion', inputType: 'text', available: true }
         ]
       },
       {
@@ -96,6 +119,12 @@ const SECTIONS = {
           { type: 'select', name: 'Zona horaria', hint: 'Ajusta la hora del sistema', value: 'America/Bogota', options: ['America/Bogota', 'America/Mexico_City', 'America/Lima', 'America/Buenos_Aires'], available: false },
           { type: 'select', name: 'Formato de fecha', hint: 'Como se mostraran las fechas', value: 'DD/MM/YYYY', options: ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'], available: false },
           { type: 'select', name: 'Moneda', hint: 'Divisa utilizada en el sistema', value: 'COP (Peso Colombiano)', options: ['COP (Peso Colombiano)', 'USD (Dolar)', 'MXN (Peso Mexicano)', 'EUR (Euro)'], available: false }
+        ]
+      },
+      {
+        label: 'Menu lateral',
+        items: [
+          { type: 'menuOrder', name: 'Orden del menu', hint: 'Arrastra o usa los botones para reordenar', available: true }
         ]
       }
     ]
@@ -116,8 +145,8 @@ const SECTIONS = {
       {
         label: 'Propinas',
         items: [
-          { type: 'toggle', name: 'Sugerir propina', hint: 'Ofrece agregar propina antes de cobrar', value: true, available: false },
-          { type: 'input', name: 'Porcentaje de propina sugerido', hint: 'Valor predeterminado al activar propina', value: '10', suffix: '%', available: false },
+          { type: 'toggle', key: 'tipSuggested', name: 'Sugerir propina', hint: 'Ofrece agregar propina antes de cobrar', available: true },
+          { type: 'input', key: 'tipPercent', name: 'Porcentaje de propina sugerido', hint: 'Valor predeterminado al activar propina', suffix: '%', available: true },
           { type: 'toggle', name: 'Propina obligatoria en grupos grandes', hint: 'Aplica automaticamente en mesas de 6+ personas', value: false, available: false },
           { type: 'toggle', name: 'Incluir propina en base imponible', hint: 'La propina se suma antes de calcular IVA', value: false, available: false }
         ]
@@ -131,10 +160,10 @@ const SECTIONS = {
       {
         label: 'Metodos Habilitados',
         items: [
-          { type: 'toggle', name: 'Efectivo', hint: 'Pago en billetes y monedas', value: true, available: false },
-          { type: 'toggle', name: 'Tarjeta debito/credito', hint: 'Pagos con tarjeta fisica', value: true, available: false },
-          { type: 'toggle', name: 'Transferencia bancaria', hint: 'Pagos electronicos entre cuentas', value: true, available: false },
-          { type: 'toggle', name: 'QR (PSE / Nequi / Daviplata)', hint: 'Codigos QR de pago instantaneo', value: false, available: false },
+          { type: 'toggle', key: 'payCash', name: 'Efectivo', hint: 'Pago en billetes y monedas', available: true },
+          { type: 'toggle', key: 'payCard', name: 'Tarjeta debito/credito', hint: 'Pagos con tarjeta fisica', available: true },
+          { type: 'toggle', key: 'payTransfer', name: 'Transferencia bancaria', hint: 'Pagos electronicos entre cuentas', available: true },
+          { type: 'toggle', key: 'payQr', name: 'QR (PSE / Nequi / Daviplata)', hint: 'Codigos QR de pago instantaneo', available: true },
           { type: 'toggle', name: 'Vale / Bonos', hint: 'Cupones o vales prepagados', value: false, available: false }
         ]
       },
@@ -152,6 +181,15 @@ const SECTIONS = {
     title: 'Recibos e Impresion',
     desc: 'Personaliza el formato y contenido de las facturas impresas',
     groups: [
+      {
+        label: 'Informacion Fiscal',
+        items: [
+          { type: 'input', name: 'Resolucion DIAN', hint: 'Numero de resolucion o autorizacion', key: 'resolucion', source: 'facturacion', inputType: 'text', available: true },
+          { type: 'input', name: 'Autorizada el', hint: 'Fecha autorizada', key: 'autorizada', source: 'facturacion', inputType: 'text', available: true },
+          { type: 'input', name: 'Prefijo', hint: 'Prefijo para facturas', key: 'prefijo', source: 'facturacion', inputType: 'text', available: true },
+          { type: 'input', name: 'Responsable IVA', hint: 'Texto legal en la factura', key: 'responsable', source: 'facturacion', inputType: 'text', available: true }
+        ]
+      },
       {
         label: 'Formato del Recibo',
         items: [
@@ -258,9 +296,24 @@ export default function SettingsPage() {
   const [notice, setNotice] = useState(null);
   const [current, setCurrent] = useState('general');
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [facturacion, setFacturacion] = useState(FACTURACION_DEFAULTS);
 
   useEffect(() => {
     setSettings(getStoredSettings());
+  }, []);
+
+  useEffect(() => {
+    const loadFacturacion = async () => {
+      try {
+        const data = await authService.getFacturacionConfig();
+        setFacturacion({ ...FACTURACION_DEFAULTS, ...(data || {}) });
+      } catch (error) {
+        console.error('Error cargando configuracion de facturacion:', error);
+        pushNotice('No se pudo cargar la configuracion de facturacion.', 'error');
+      }
+    };
+
+    loadFacturacion();
   }, []);
 
   useEffect(() => {
@@ -273,10 +326,12 @@ export default function SettingsPage() {
 
   const updateSetting = (key, value) => {
     let nextValue = value;
-    if (key === 'vatPercent' || key === 'lowStockThreshold') {
+    if (key === 'vatPercent' || key === 'lowStockThreshold' || key === 'tipPercent') {
       const numeric = Number(value || 0);
       const limited = key === 'vatPercent'
         ? Math.max(0, Math.min(100, Number.isNaN(numeric) ? 0 : numeric))
+        : key === 'tipPercent'
+          ? Math.max(0, Math.min(100, Number.isNaN(numeric) ? 0 : numeric))
         : Math.max(0, Math.min(9999, Number.isNaN(numeric) ? 0 : numeric));
       nextValue = limited;
     }
@@ -287,20 +342,99 @@ export default function SettingsPage() {
     });
   };
 
-  const save = () => {
-    saveStoredSettings(settings);
-    pushNotice('Configuracion guardada');
+  const updateFacturacion = async (key, value) => {
+    const next = { ...facturacion, [key]: value };
+    setFacturacion(next);
+    try {
+      await authService.saveFacturacionConfig(next);
+    } catch (error) {
+      console.error('Error guardando configuracion de facturacion:', error);
+      pushNotice('No se pudo guardar la configuracion de facturacion.', 'error');
+    }
   };
 
-  const restoreDefaults = () => {
+  const save = async () => {
+    saveStoredSettings(settings);
+    try {
+      await authService.saveFacturacionConfig(facturacion);
+      pushNotice('Configuracion guardada');
+    } catch (error) {
+      console.error('Error guardando configuracion de facturacion:', error);
+      pushNotice('No se pudo guardar la configuracion de facturacion.', 'error');
+    }
+  };
+
+  const restoreDefaults = async () => {
     setSettings(DEFAULT_SETTINGS);
     saveStoredSettings(DEFAULT_SETTINGS);
-    pushNotice('Valores por defecto restaurados');
+    setFacturacion(FACTURACION_DEFAULTS);
+    try {
+      await authService.saveFacturacionConfig(FACTURACION_DEFAULTS);
+      pushNotice('Valores por defecto restaurados');
+    } catch (error) {
+      console.error('Error restaurando configuracion de facturacion:', error);
+      pushNotice('No se pudo restaurar la configuracion de facturacion.', 'error');
+    }
   };
 
   const section = useMemo(() => SECTIONS[current], [current]);
 
   const renderControl = (item) => {
+    if (item.type === 'menuOrder') {
+      const currentOrder = Array.isArray(settings.menuOrder) && settings.menuOrder.length
+        ? settings.menuOrder
+        : MENU_ORDER_ITEMS.map((m) => m.id);
+      const orderIds = MENU_ORDER_ITEMS.map((m) => m.id);
+      const mergedOrder = [
+        ...currentOrder.filter((id) => orderIds.includes(id)),
+        ...orderIds.filter((id) => !currentOrder.includes(id))
+      ];
+
+      const moveItem = (id, direction) => {
+        const idx = mergedOrder.indexOf(id);
+        if (idx < 0) return;
+        const nextIndex = direction === 'up' ? idx - 1 : idx + 1;
+        if (nextIndex < 0 || nextIndex >= mergedOrder.length) return;
+        const next = [...mergedOrder];
+        const temp = next[idx];
+        next[idx] = next[nextIndex];
+        next[nextIndex] = temp;
+        updateSetting('menuOrder', next);
+      };
+
+      return (
+        <div className="menu-order-list">
+          {mergedOrder.map((id, index) => {
+            const itemLabel = MENU_ORDER_ITEMS.find((m) => m.id === id)?.label || id;
+            return (
+              <div key={id} className="menu-order-row">
+                <span className="menu-order-label">{itemLabel}</span>
+                <div className="menu-order-actions">
+                  <button
+                    type="button"
+                    className="menu-order-btn"
+                    onClick={() => moveItem(id, 'up')}
+                    disabled={index === 0}
+                    aria-label="Mover arriba"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className="menu-order-btn"
+                    onClick={() => moveItem(id, 'down')}
+                    disabled={index === mergedOrder.length - 1}
+                    aria-label="Mover abajo"
+                  >
+                    ↓
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
     if (item.type === 'toggle') {
       const on = item.available ? Boolean(settings[item.key]) : Boolean(item.value);
       return (
@@ -316,15 +450,25 @@ export default function SettingsPage() {
     }
 
     if (item.type === 'input') {
-      const value = item.available ? settings[item.key] : item.value;
+      const valueSource = item.source === 'facturacion' ? facturacion : settings;
+      const value = item.available ? valueSource[item.key] : item.value;
+      const isNumber = item.inputType === 'number' || typeof value === 'number';
       return (
         <div className="setting-control" style={{ display: 'flex', alignItems: 'center' }}>
           <input
             className={`input-control${item.suffix ? ' small' : ''}`}
             value={value}
-            onChange={(e) => (item.available ? updateSetting(item.key, Number(e.target.value)) : null)}
+            onChange={(e) => {
+              if (!item.available) return;
+              if (item.source === 'facturacion') {
+                updateFacturacion(item.key, e.target.value);
+                return;
+              }
+              const nextValue = isNumber ? Number(e.target.value) : e.target.value;
+              updateSetting(item.key, nextValue);
+            }}
             disabled={!item.available}
-            type={item.available && typeof value === 'number' ? 'number' : 'text'}
+            type={item.available && isNumber ? 'number' : 'text'}
           />
           {item.suffix ? <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600, marginLeft: 6 }}>{item.suffix}</span> : null}
         </div>
