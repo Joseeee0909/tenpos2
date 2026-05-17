@@ -58,7 +58,9 @@
 .roles-v3 .mtitle{font-size:17px;font-weight:700;color:#1a1a2e}
 .roles-v3 .mclose{width:32px;height:32px;border-radius:8px;border:1px solid #e0e0ee;background:white;cursor:pointer;font-size:18px;color:#64748b;font-family:inherit;display:flex;align-items:center;justify-content:center;line-height:1;transition:all .12s}
 .roles-v3 .mclose:hover{border-color:#7c3aed;color:#7c3aed}
-.roles-v3 .mbody{padding:20px 22px 4px}
+.roles-v3 .mbody{padding:18px 20px 4px;max-height:70vh;overflow-y:auto}
+.roles-v3 .mbody::-webkit-scrollbar{width:4px}
+.roles-v3 .mbody::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px}
 .roles-v3 .flbl{font-size:12px;font-weight:600;color:#64748b;margin-bottom:7px;display:block}
 .roles-v3 .frow{margin-bottom:16px}
 .roles-v3 .f2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}

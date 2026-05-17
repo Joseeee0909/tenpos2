@@ -44,7 +44,14 @@ function RoutesWrapper() {
             </ProtectedRoute>
           )}
         />
-        <Route path="/ventas" element={<VentasPage />} />
+        <Route
+          path="/ventas"
+          element={(
+            <ProtectedRoute allowedPermissions={['ver_ventas', 'gestionar_ventas']}>
+              <VentasPage />
+            </ProtectedRoute>
+          )}
+        />
         <Route path="/configuracion" element={<SettingsPage />} />
         <Route
           path="/roles"

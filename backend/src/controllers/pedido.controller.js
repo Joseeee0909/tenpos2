@@ -9,6 +9,39 @@ export const crearPedido = async (req, res) => {
       responsable: String(req.body?.responsable || '').trim() || 'Sin asignar'
     }
 
+    const items = Array.isArray(payload.productos) ? payload.productos : []
+    const productIds = items.map((item) => item?.productoId).filter(Boolean)
+    if (productIds.length) {
+      const products = await Product.find(
+        { _id: { $in: productIds } },
+        { stock: 1, nombre: 1, disponible: 1 }
+      )
+
+      const stockById = new Map(products.map((p) => [String(p._id), p]))
+      const insufficient = []
+
+      items.forEach((item) => {
+        const product = stockById.get(String(item.productoId))
+        const qty = Math.max(0, Number(item.cantidad || 1))
+        if (!product || product.disponible === false || product.stock < qty) {
+          insufficient.push({
+            productoId: item.productoId,
+            nombre: product?.nombre || item?.nombre || 'Producto',
+            stock: product?.stock ?? 0,
+            disponible: product?.disponible ?? false,
+            requerido: qty
+          })
+        }
+      })
+
+      if (insufficient.length) {
+        return res.status(409).json({
+          error: 'Producto no disponible o stock insuficiente para crear el pedido',
+          items: insufficient
+        })
+      }
+    }
+
     const pedido = new Pedido(payload)
 
     await pedido.save()

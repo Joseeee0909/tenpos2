@@ -8,6 +8,8 @@ const ALL_PERMS = [
   { id: 'ver_pedidos', label: 'Ver pedidos', desc: 'Consultar lista y detalle' },
   { id: 'crear_pedidos', label: 'Crear pedidos', desc: 'Registrar nuevos pedidos' },
   { id: 'editar_pedidos', label: 'Editar pedidos', desc: 'Modificar pedidos existentes' },
+  { id: 'ver_ventas', label: 'Ver ventas', desc: 'Consultar historial y detalles' },
+  { id: 'gestionar_ventas', label: 'Gestionar ventas', desc: 'Editar o anular ventas' },
   { id: 'ver_productos', label: 'Ver productos', desc: 'Consultar catalogo' },
   { id: 'gestionar_productos', label: 'Gestionar productos', desc: 'Crear, editar, desactivar' },
   { id: 'ver_mesas', label: 'Ver mesas', desc: 'Consultar estado de mesas' },

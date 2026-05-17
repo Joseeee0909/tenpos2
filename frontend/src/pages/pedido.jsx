@@ -68,6 +68,15 @@ const getDefaultResponsable = () => {
   }
 };
 
+const getDefaultMeseroId = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem('usuario') || '{}');
+    return user?._id || null;
+  } catch {
+    return null;
+  }
+};
+
 export default function PedidosPage() {
   const location = useLocation();
   const [orders, setOrders] = useState([]);
@@ -237,7 +246,8 @@ export default function PedidosPage() {
       ]);
       setOrders(Array.isArray(pedidosData) ? pedidosData : []);
       setMesas(Array.isArray(mesasData) ? mesasData : []);
-      setProducts(Array.isArray(productosData) ? productosData : []);
+      const safeProducts = Array.isArray(productosData) ? productosData : [];
+      setProducts(safeProducts.filter((p) => p?.disponible !== false));
     } catch (error) {
       console.error('Error cargando datos de pedidos:', error);
       pushNotice('No se pudieron cargar pedidos, productos y mesas.', 'error');
@@ -410,6 +420,11 @@ export default function PedidosPage() {
         })),
         total: cartTotal
       };
+
+      if (!editingOrderId) {
+        const meseroId = getDefaultMeseroId();
+        if (meseroId) payload.mesero = meseroId;
+      }
 
       if (editingOrderId) {
         await authService.actualizarPedido(editingOrderId, payload);

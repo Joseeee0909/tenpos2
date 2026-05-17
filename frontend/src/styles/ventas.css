@@ -298,7 +298,7 @@
   border-radius:16px;
   width:90%;
   max-width:600px;
-  max-height:90vh;
+  max-height:80vh;
   overflow:hidden;
   box-shadow:0 20px 60px rgba(0,0,0,0.3);
   animation:slideUp .3s;
@@ -317,7 +317,7 @@
 .sales-page .modal-title{
   font-size:16px;
   font-weight:700;
-  color:#1a1a2e;
+  color:#ffffff;
   display:flex;
   align-items:center;
   gap:10px;
@@ -341,7 +341,7 @@
 .sales-page .modal-close:hover{background:#e0e0ee}
 .sales-page .modal-close svg{width:16px;height:16px;color:#64748b}
 
-.sales-page .modal-body{padding:24px;max-height:calc(90vh - 140px);overflow-y:auto}
+.sales-page .modal-body{padding:22px;max-height:calc(80vh - 120px);overflow-y:auto}
 .sales-page .modal-body::-webkit-scrollbar{width:4px}
 .sales-page .modal-body::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px}
 

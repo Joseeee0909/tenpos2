@@ -22,9 +22,16 @@ export default function SidebarMenu() {
   const isAdmin = ['admin', 'root'].includes(roleKey);
   const userPerms = Array.isArray(user?.permisos) ? user.permisos : [];
 
+  const hasPermission = (required) => {
+    if (!required || !required.length) return true;
+    if (isAdmin) return true;
+    return required.some((perm) => userPerms.includes(perm));
+  };
+
   const PERM_BY_ITEM = {
     productos: ['ver_productos', 'gestionar_productos'],
     pedidos: ['ver_pedidos', 'crear_pedidos', 'editar_pedidos'],
+    ventas: ['ver_ventas', 'gestionar_ventas'],
     mesas: ['ver_mesas', 'gestionar_mesas'],
     roles: ['gestionar_roles'],
     usuarios: ['gestionar_usuarios']
@@ -59,10 +66,9 @@ export default function SidebarMenu() {
     ];
 
     const allowed = baseItems.filter((item) => {
+      if (item.id === 'inicio') return true;
       const required = PERM_BY_ITEM[item.id];
-      if (!required) return true;
-      if (isAdmin) return true;
-      return required.some((perm) => userPerms.includes(perm));
+      return hasPermission(required);
     });
 
     const order = Array.isArray(appSettings.menuOrder) && appSettings.menuOrder.length
@@ -89,7 +95,8 @@ export default function SidebarMenu() {
   const toggleMobileMenu = () => setMobileOpen((prev) => !prev);
 
   const confirmLogoutAction = () => {
-    localStorage.clear();
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
     navigate('/login');
     setConfirmLogout(false);
   };

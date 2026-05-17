@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import authService from '../services/api';
 
 export const AuthContext = createContext();
 
@@ -72,6 +73,38 @@ export function AuthProvider({ children }) {
     if (user) localStorage.setItem('usuario', JSON.stringify(user));
     else localStorage.removeItem('usuario');
   }, [user]);
+
+  useEffect(() => {
+    let mounted = true;
+    const refreshPerms = async () => {
+      if (!token || !user?.rol) return;
+      try {
+        const roles = await authService.getRoles();
+        const match = Array.isArray(roles)
+          ? roles.find((r) => String(r?.nombre || '').toLowerCase() === String(user.rol || '').toLowerCase())
+          : null;
+        const perms = Array.isArray(match?.permisos) ? match.permisos : [];
+        const current = Array.isArray(user?.permisos) ? user.permisos : [];
+        if (mounted && JSON.stringify(perms) !== JSON.stringify(current)) {
+          setUser((prev) => ({ ...prev, permisos: perms }));
+        }
+      } catch {
+        // no-op
+      }
+    };
+
+    const handleFocus = () => refreshPerms();
+
+    refreshPerms();
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [token, user?.rol]);
 
   const login = ({ token: newToken, usuario }) => {
     if (newToken) setToken(newToken);

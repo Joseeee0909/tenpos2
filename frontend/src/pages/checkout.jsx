@@ -39,6 +39,15 @@ const readTaxSettings = () => {
   };
 };
 
+const getCurrentUserId = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem('usuario') || '{}');
+    return user?._id || null;
+  } catch {
+    return null;
+  }
+};
+
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -242,6 +251,9 @@ export default function CheckoutPage() {
         taxSettings
       };
 
+      const meseroId = getCurrentUserId();
+      if (meseroId) payload.mesero = meseroId;
+
       const result = await authService.checkoutPedido(payload);
       setLastFactura(result?.factura || null);
       closeModal('complete');
@@ -436,7 +448,7 @@ export default function CheckoutPage() {
           </div>
 
           <button className="complete-btn" type="button" onClick={() => openModal('complete')}>
-            <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg viewBox="-5 2 50 15" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 9l4 4 8-8" />
             </svg>
             Completar Venta

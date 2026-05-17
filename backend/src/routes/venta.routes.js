@@ -7,15 +7,15 @@ import {
   eliminarVenta,
   limpiarVentas
 } from "../controllers/venta.controller.js";
-import { verifyToken, requireRole } from "../middlewares/auth.middleware.js";
+import { verifyToken, requirePermission } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.post("/", crearVenta);
-router.get("/", obtenerVentas);
-router.delete("/", verifyToken, requireRole('administrador', 'admin', 'root'), limpiarVentas);
-router.get("/:id", obtenerVenta);
-router.put("/:id", actualizarVenta);
-router.delete("/:id", eliminarVenta);
+router.post("/", verifyToken, requirePermission('gestionar_ventas'), crearVenta);
+router.get("/", verifyToken, requirePermission('ver_ventas', 'gestionar_ventas'), obtenerVentas);
+router.delete("/", verifyToken, requirePermission('gestionar_ventas'), limpiarVentas);
+router.get(":id", verifyToken, requirePermission('ver_ventas', 'gestionar_ventas'), obtenerVenta);
+router.put(":id", verifyToken, requirePermission('gestionar_ventas'), actualizarVenta);
+router.delete(":id", verifyToken, requirePermission('gestionar_ventas'), eliminarVenta);
 
 export default router;

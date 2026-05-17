@@ -221,6 +221,14 @@ const eliminarVenta = async (id) => {
   return res.data;
 };
 
+/* ---------------------------------------------------
+   🔹 DASHBOARD
+--------------------------------------------------- */
+const getDashboardSummary = async () => {
+  const res = await api.get('/dashboard/summary');
+  return res.data;
+};
+
 
 
 const getFacturacionConfig = async () => {
@@ -277,5 +285,6 @@ export default {
   getVenta,
   crearVenta,
   actualizarVenta,
-  eliminarVenta
+  eliminarVenta,
+  getDashboardSummary
 };

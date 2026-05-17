@@ -4,6 +4,7 @@ import Factura from '../models/factura.model.js'
 import Pedido from '../models/pedidos.model.js'
 import Configuracion from '../models/configuracion.model.js'
 import TablaModel from '../models/tabla.model.js'
+import Product from '../models/product.model.js'
 
 const ensureDir = (dir) => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }) }
 const esc = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)')
@@ -44,15 +45,24 @@ const buildTotals = (sum, taxSettings) => {
   return { subtotal, ivaTotal, total: subtotal + ivaTotal }
 }
 
-const buildPdfBuffer = (lines) => {
-  const content = ['BT','/F1 11 Tf','40 790 Td']
-  lines.forEach((l, i) => { if (i>0) content.push('0 -16 Td'); content.push(`(${esc(l)}) Tj`) })
+const buildPdfBuffer = (lines, options = {}) => {
+  const width = Math.round(Number(options.width ?? 350))
+  const lineHeight = Math.round(Number(options.lineHeight ?? 16))
+  const marginTop = Math.round(Number(options.marginTop ?? 50))
+  const marginBottom = Math.round(Number(options.marginBottom ?? 40))
+  const marginLeft = Math.round(Number(options.marginLeft ?? 40))
+  const safeLineCount = Math.max(1, lines.length)
+  const height = Math.max(200, marginTop + marginBottom + (safeLineCount * lineHeight))
+  const startY = Math.max(lineHeight, height - marginTop)
+
+  const content = ['BT', '/F1 11 Tf', `${marginLeft} ${startY} Td`]
+  lines.forEach((l, i) => { if (i > 0) content.push(`0 -${lineHeight} Td`); content.push(`(${esc(l)}) Tj`) })
   content.push('ET')
   const stream = content.join('\n')
   const objs = []
   objs.push('1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj')
   objs.push('2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj')
-  objs.push('3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 300 900] /Contents 5 0 R /Resources << /Font << /F1 4 0 R >> >> >> endobj')
+  objs.push(`3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Contents 5 0 R /Resources << /Font << /F1 4 0 R >> >> >> endobj`)
   objs.push('4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Courier >> endobj')
   objs.push(`5 0 obj << /Length ${stream.length} >> stream\n${stream}\nendstream endobj`)
   let pdf='%PDF-1.4\n'; const offs=[0]
@@ -87,10 +97,62 @@ export const checkoutPedido = async (req,res)=>{
   const propina = incluirPropina ? Math.round(rawTip / 100) * 100 : 0
   const total = totals.total + propina
   const numero = String(Date.now())
-  const items = (pedido.productos||[]).map(i=>({ nombre:i.nombre, cantidad:Number(i.cantidad||1), precio:Number(i.precio||0) }))
+  const pedidoItems = Array.isArray(pedido.productos) ? pedido.productos : []
+  const items = pedidoItems.map(i=>({ nombre:i.nombre, cantidad:Number(i.cantidad||1), precio:Number(i.precio||0) }))
   const clienteData = cliente && typeof cliente === 'object'
     ? { nombre: cliente.nombre || 'Consumidor Final', documento: cliente.documento || '000000' }
     : { nombre: 'Consumidor Final', documento: '000000' }
+
+  const prevEstado = String(pedido.estado || '').toLowerCase()
+  if (prevEstado !== 'entregado') {
+    const productIds = pedidoItems.map((item) => item?.productoId).filter(Boolean)
+    if (productIds.length) {
+      const products = await Product.find(
+        { _id: { $in: productIds } },
+        { stock: 1, nombre: 1 }
+      )
+
+      const stockById = new Map(products.map((p) => [String(p._id), p]))
+      const insufficient = []
+
+      pedidoItems.forEach((item) => {
+        const product = stockById.get(String(item.productoId))
+        const qty = Math.max(0, Number(item.cantidad || 1))
+        if (!product || product.stock < qty) {
+          insufficient.push({
+            productoId: item.productoId,
+            nombre: product?.nombre || item?.nombre || 'Producto',
+            stock: product?.stock ?? 0,
+            requerido: qty
+          })
+        }
+      })
+
+      if (insufficient.length) {
+        return res.status(409).json({
+          error: 'Stock insuficiente para completar el pedido',
+          items: insufficient
+        })
+      }
+
+      const updates = pedidoItems.map((item) => ({
+        updateOne: {
+          filter: { _id: item.productoId },
+          update: { $inc: { stock: -Math.abs(Number(item.cantidad || 1)) } }
+        }
+      }))
+
+      if (updates.length) {
+        await Product.bulkWrite(updates)
+      }
+    }
+  }
+  const meseroId = pedido.mesero || req.body?.mesero || null
+
+  if (!pedido.mesero && meseroId) {
+    pedido.mesero = meseroId
+  }
+
   const factura = await Factura.create({
     numero,
     emisor: configDoc.facturacion,
@@ -102,7 +164,7 @@ export const checkoutPedido = async (req,res)=>{
     total,
     metodoPago,
     pedidoId: pedido._id,
-    mesero: pedido.mesero,
+    mesero: meseroId,
     mesa: pedido.mesa
   })
 
@@ -125,7 +187,7 @@ export const checkoutPedido = async (req,res)=>{
   lines.push(`C.C / NIT : ${factura.cliente.documento}`)
   lines.push('----------------------------')
   lines.push('CT  Descripcion        Valor')
-  items.forEach(i=>lines.push(`${i.cantidad}  ${i.nombre.slice(0,14).padEnd(14,' ')} ${Math.round(i.precio*i.cantidad)}`))
+  items.forEach(i=>lines.push(`${i.cantidad}  ${i.nombre.slice(0,14).padEnd(20,' ')} ${Math.round(i.precio*i.cantidad)}`))
   lines.push('----------------------------')
   lines.push(`SUBTOTAL: ${totals.subtotal}`)
   lines.push(`IVA: ${totals.ivaTotal}`)

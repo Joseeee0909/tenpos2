@@ -79,6 +79,9 @@ class AuthController {
       res.status(200).json({
         mensaje: "Inicio de sesión exitoso",
         usuario: {
+          _id: user._id,
+          idusuario: user.idusuario,
+          nombre: user.nombre,
           username: user.username,
           rol: user.rol,
           permisos
