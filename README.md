@@ -68,9 +68,8 @@ Este proyecto fue desarrollado como práctica de desarrollo full stack, enfocado
 
 ---
 
-## 📷 Capturas (opcional)
-
-Agrega aquí imágenes del sistema en funcionamiento.
+## 📷 Capturas 
+  PROXIMAMENTE
 
 ---
 
