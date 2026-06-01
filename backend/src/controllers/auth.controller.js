@@ -2,18 +2,53 @@ import jwt from "jsonwebtoken";
 import Usuario from "../classes/usuario.js";
 import RolModel from "../models/rol.model.js";
 import dotenv from "dotenv";
+import { pickFields, toBoolean, toTrimmedString } from "../utils/requestPayload.js";
 dotenv.config();
 
 const SECRET_KEY = process.env.SECRET_KEY;
 
+if (!SECRET_KEY) {
+  throw new Error('SECRET_KEY environment variable is required');
+}
+
 class AuthController {
+  static normalizeRegisterPayload(body = {}) {
+    const payload = pickFields(body, ['idusuario', 'nombre', 'username', 'email', 'password', 'rol', 'activo']);
+
+    return {
+      idusuario: toTrimmedString(payload.idusuario),
+      nombre: toTrimmedString(payload.nombre),
+      username: toTrimmedString(payload.username),
+      email: toTrimmedString(payload.email),
+      password: toTrimmedString(payload.password),
+      rol: toTrimmedString(payload.rol, 'mesero') || 'mesero',
+      activo: toBoolean(payload.activo, true)
+    };
+  }
+
+  static normalizeLoginPayload(body = {}) {
+    const payload = pickFields(body, ['username', 'password']);
+
+    return {
+      username: toTrimmedString(payload.username),
+      password: toTrimmedString(payload.password)
+    };
+  }
 
   // ============================
   //        REGISTRO
   // ============================
   static async register(req, res) {
     try {
-      const { idusuario,nombre, username, email, password, rol, activo } = req.body;
+      const { idusuario, nombre, username, email, password, rol, activo } = AuthController.normalizeRegisterPayload(req.body);
+
+      if (!idusuario || !nombre || !username || !email || !password) {
+        return res.status(400).json({ error: "Faltan campos requeridos" });
+      }
+
+      if (password.length < 8) {
+        return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres" });
+      }
 
       // Crear usuario usando la clase
       const nuevoUsuario = new Usuario(idusuario, nombre, username, email, password, rol, activo);
@@ -43,7 +78,11 @@ class AuthController {
   // ============================
   static async login(req, res) {
     try {
-      const { username, password } = req.body;
+      const { username, password } = AuthController.normalizeLoginPayload(req.body);
+
+      if (!username || !password) {
+        return res.status(400).json({ mensaje: "Username y contraseña son requeridos" });
+      }
 
       const user = await Usuario.obtenerPorUsuario(username);
 

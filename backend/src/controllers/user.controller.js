@@ -1,4 +1,7 @@
 import Usuario from '../classes/usuario.js';
+import { pickFields, toBoolean, toTrimmedString } from '../utils/requestPayload.js';
+
+const USER_UPDATE_FIELDS = ['idusuario', 'nombre', 'username', 'email', 'password', 'rol', 'activo'];
 
 const listarUsuarios = async (req, res) => {
   try {
@@ -31,7 +34,14 @@ const activarUsuario = async (req, res) => {
 const actualizar = async (req, res) => {
   try {
     const id = req.params.id; 
-    const datosActualizados = req.body;
+    const datosActualizados = pickFields(req.body, USER_UPDATE_FIELDS);
+
+    if ('nombre' in datosActualizados) datosActualizados.nombre = toTrimmedString(datosActualizados.nombre);
+    if ('username' in datosActualizados) datosActualizados.username = toTrimmedString(datosActualizados.username);
+    if ('email' in datosActualizados) datosActualizados.email = toTrimmedString(datosActualizados.email);
+    if ('rol' in datosActualizados) datosActualizados.rol = toTrimmedString(datosActualizados.rol);
+    if ('activo' in datosActualizados) datosActualizados.activo = toBoolean(datosActualizados.activo, true);
+
     const usuarioActualizado = await Usuario.actualizar(id, datosActualizados);
     res.json(usuarioActualizado);
   } catch (error) {

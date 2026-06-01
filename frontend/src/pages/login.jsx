@@ -24,12 +24,8 @@ export default function Login() {
 
     try {
       const data = await authService.login(username, password);
-      // If AuthContext is available, call its login; otherwise fall back to localStorage
       if (typeof contextLogin === 'function') {
         contextLogin({ token: data.token, usuario: data.usuario });
-      } else {
-        if (data.token) localStorage.setItem('token', data.token);
-        if (data.usuario) localStorage.setItem('usuario', JSON.stringify(data.usuario));
       }
       
       // Redirigir siempre a la pantalla de inicio tras login exitoso

@@ -1,6 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { normalizeRole } from '../utils/authSession';
 import { UxConfirm } from './UXFeedback';
 import { getStoredSettings } from '../utils/settings';
 import '../styles/sidebar.css';
@@ -12,12 +13,7 @@ export default function SidebarMenu() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [appSettings, setAppSettings] = useState(getStoredSettings());
-
-  const normalizeRole = (role) => {
-    const raw = String(role || '').trim().toLowerCase();
-    if (raw === 'administrador') return 'admin';
-    return raw;
-  };
+  const { logout } = useContext(AuthContext) || {};
   const roleKey = normalizeRole(user?.rol);
   const isAdmin = ['admin', 'root'].includes(roleKey);
   const userPerms = Array.isArray(user?.permisos) ? user.permisos : [];
@@ -95,9 +91,11 @@ export default function SidebarMenu() {
   const toggleMobileMenu = () => setMobileOpen((prev) => !prev);
 
   const confirmLogoutAction = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('usuario');
-    navigate('/login');
+    if (typeof logout === 'function') {
+      logout();
+    } else {
+      navigate('/login');
+    }
     setConfirmLogout(false);
   };
 

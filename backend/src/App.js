@@ -12,7 +12,8 @@ import dashboardRoutes from './routes/dashboard.routes.js'
 
 const app = express()
 
-app.use(express.json())
+app.use(express.json({ limit: '1mb' }))
+app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 
 app.use(cors({
   origin: process.env.VITE_FRONTEND_URL || 'http://localhost:5173',
@@ -32,5 +33,14 @@ app.use('/api/pedidos', pedidoRoutes)
 app.use('/api/mesas', tablaRoutes)
 app.use('/api', facturaRoutes)
 app.use('/api', dashboardRoutes)
+
+app.use((req, res) => {
+  res.status(404).json({ mensaje: 'Ruta no encontrada' })
+})
+
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err)
+  res.status(500).json({ mensaje: 'Error interno del servidor' })
+})
 
 export default app

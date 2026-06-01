@@ -5,6 +5,9 @@ import Pedido from '../models/pedidos.model.js'
 import Configuracion from '../models/configuracion.model.js'
 import TablaModel from '../models/tabla.model.js'
 import Product from '../models/product.model.js'
+import { pickFields, toBoolean, toNumber, toTrimmedString } from '../utils/requestPayload.js'
+
+const FACTURACION_FIELDS = ['nombre', 'nit', 'direccion', 'telefono', 'resolucion', 'autorizada', 'prefijo', 'responsable']
 
 const ensureDir = (dir) => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }) }
 const esc = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)')
@@ -80,19 +83,29 @@ export const getConfig = async (_req,res)=>{
   res.json(c.facturacion)
 }
 export const saveConfig = async (req,res)=>{
-  const c = await Configuracion.findOneAndUpdate({ clave:'facturacion' }, { $set:{ facturacion:req.body } }, { upsert:true,new:true })
+  const facturacion = pickFields(req.body, FACTURACION_FIELDS)
+  const c = await Configuracion.findOneAndUpdate({ clave:'facturacion' }, { $set:{ facturacion } }, { upsert:true,new:true })
   res.json(c.facturacion)
 }
 
 export const checkoutPedido = async (req,res)=>{
-  const { pedidoId, cliente, metodoPago='Efectivo', incluirPropina=false, propinaPercent=10 } = req.body
+  const pedidoId = toTrimmedString(req.body?.pedidoId)
+  const cliente = req.body?.cliente && typeof req.body.cliente === 'object' ? req.body.cliente : null
+  const metodoPago = toTrimmedString(req.body?.metodoPago, 'Efectivo') || 'Efectivo'
+  const incluirPropina = toBoolean(req.body?.incluirPropina, false)
+  const propinaPercent = toNumber(req.body?.propinaPercent, 10)
+
+  if (!pedidoId) {
+    return res.status(400).json({ error: 'pedidoId requerido' })
+  }
+
   const pedido = await Pedido.findById(pedidoId)
   if(!pedido) return res.status(404).json({ error:'Pedido no encontrado' })
   const configDoc = await Configuracion.findOne({ clave:'facturacion' }) || await Configuracion.create({ clave:'facturacion' })
   const taxSettings = readTaxSettings(req.body || {})
   const baseTotal = Number(pedido.total || 0)
   const totals = buildTotals(baseTotal, taxSettings)
-  const tipRate = Number(propinaPercent || 0) / 100
+  const tipRate = Number.isFinite(propinaPercent) ? propinaPercent / 100 : 0
   const rawTip = totals.subtotal * tipRate
   const propina = incluirPropina ? Math.round(rawTip / 100) * 100 : 0
   const total = totals.total + propina
@@ -147,7 +160,7 @@ export const checkoutPedido = async (req,res)=>{
       }
     }
   }
-  const meseroId = pedido.mesero || req.body?.mesero || null
+  const meseroId = pedido.mesero || toTrimmedString(req.body?.mesero, '') || null
 
   if (!pedido.mesero && meseroId) {
     pedido.mesero = meseroId
@@ -217,9 +230,9 @@ export const previewFactura = async (req, res) => {
   const taxSettings = readTaxSettingsFromQuery(req.query)
   const baseTotal = Number(pedido.total || 0)
   const totals = buildTotals(baseTotal, taxSettings)
-  const tipRate = Number(req.query.propinaPercent || 0) / 100
+  const tipRate = toNumber(req.query.propinaPercent, 0) / 100
   const rawTip = totals.subtotal * tipRate
-  const incluirPropina = String(req.query.incluirPropina || 'false').toLowerCase() === 'true'
+  const incluirPropina = toBoolean(req.query.incluirPropina, false)
   const propina = incluirPropina ? Math.round(rawTip / 100) * 100 : 0
   const total = totals.total + propina
   const numero = String(Date.now())

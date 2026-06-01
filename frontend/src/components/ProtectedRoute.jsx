@@ -1,13 +1,8 @@
 import { useContext } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { normalizeRole } from '../utils/authSession';
 import '../styles/access-denied.css';
-
-const normalizeRole = (role) => {
-  const raw = String(role || '').trim().toLowerCase();
-  if (raw === 'administrador') return 'admin';
-  return raw;
-};
 
 function Unauthorized({ section = 'este apartado' }) {
   return (

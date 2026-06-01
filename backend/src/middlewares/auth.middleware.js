@@ -1,7 +1,11 @@
 import jwt from 'jsonwebtoken';
 import RolModel from '../models/rol.model.js';
 
-const SECRET_KEY = process.env.SECRET_KEY || 'clave_secreta_temporal';
+const SECRET_KEY = process.env.SECRET_KEY;
+
+if (!SECRET_KEY) {
+  throw new Error('SECRET_KEY environment variable is required');
+}
 
 export function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization || req.headers.Authorization;

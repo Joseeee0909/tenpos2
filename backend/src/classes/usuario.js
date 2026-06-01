@@ -3,13 +3,14 @@ import bcrypt from "bcrypt";
 import rolModel from "../models/rol.model.js";
 
 class Usuario {
-  constructor(idusuario,nombre, username, email, password, rol = "mesero") {
+  constructor(idusuario, nombre, username, email, password, rol = "mesero", activo = true) {
     this.idusuario = idusuario;
     this.nombre = nombre;
     this.username = username;
     this.email = email;
     this.password = password;
     this.rol = rol;
+    this.activo = activo;
   }
 
   async registrar() {
@@ -28,6 +29,7 @@ class Usuario {
       email: this.email,
       password: hashedPassword,
       rol: this.rol,
+      activo: this.activo,
     });
 
     await nuevoUsuario.save();
