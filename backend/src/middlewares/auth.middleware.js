@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import RolModel from '../models/rol.model.js';
+import prisma from '../lib/prisma.js';
 
 const SECRET_KEY = process.env.SECRET_KEY;
 
@@ -45,8 +45,13 @@ export function requirePermission(...permisos) {
     if (isAdmin) return next();
 
     let userPerms = [];
-    if (rol) {
-      const rolDoc = await RolModel.findOne({ nombre: req.user?.rol });
+    if (rol && req.user?.empresaId) {
+      const rolDoc = await prisma.rol.findFirst({
+        where: {
+          empresaId: req.user.empresaId,
+          nombre: req.user?.rol
+        }
+      });
       userPerms = Array.isArray(rolDoc?.permisos) ? rolDoc.permisos : [];
     }
 

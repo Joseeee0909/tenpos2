@@ -1,49 +1,71 @@
-import productModel from "../models/product.model.js";
+import prisma from "../lib/prisma.js";
 
 class Producto {
-    constructor(idproducto,nombre, precio, descripcion, categoria, stock = 0, disponible = true) {
-        this.idproducto = idproducto;
-        this.nombre = nombre;
-        this.precio = precio;
-        this.descripcion = descripcion;
-        this.categoria = categoria;
-        this.stock = stock;
-        this.disponible = disponible;
-    }
+  constructor(
+    empresaId,
+    idproducto,
+    nombre,
+    precio,
+    descripcion,
+    categoria,
+    stock = 0,
+    disponible = true
+  ) {
+    this.empresaId = empresaId;
+    this.idproducto = idproducto;
+    this.nombre = nombre;
+    this.precio = precio;
+    this.descripcion = descripcion;
+    this.categoria = categoria;
+    this.stock = stock;
+    this.disponible = disponible;
+  }
 
-    async obtenerTodos() {
-        return await productModel.find();
-    }
+  static async obtenerTodos(empresaId) {
+    return await prisma.product.findMany({
+      where: { empresaId }
+    });
+  }
 
-    async obtenerPorId(id) {
-        return await productModel.findById(id);
-    }
+  static async obtenerPorId(id, empresaId) {
+    return await prisma.product.findFirst({
+      where: {
+        id,
+        empresaId
+      }
+    });
+  }
 
-    async eliminarPorId(id) {
-        return await productModel.findByIdAndUpdate(
-            id,
-            { disponible: false },
-            { new: true }
-        );
-    }
+  static async eliminarPorId(id, empresaId) {
+    return await prisma.product.update({
+      where: { id, empresaId },
+      data: {
+        disponible: false
+      }
+    });
+  }
 
-    async actualizarPorId(id, datosActualizados) {
-        return await productModel.findByIdAndUpdate(id, datosActualizados, { new: true });
-    }
+  static async actualizarPorId(id, empresaId, datosActualizados) {
+    return await prisma.product.update({
+      where: { id, empresaId },
+      data: datosActualizados
+    });
+  }
 
-
-    async guardar() {
-        const nuevoProducto = new productModel({
-            idproducto: this.idproducto,
-            nombre: this.nombre,
-            precio: this.precio,
-            descripcion: this.descripcion,
-            categoria: this.categoria,
-            stock: this.stock,
-            disponible: this.disponible
-        });
-        return await nuevoProducto.save();
-    }
+  async guardar() {
+    return await prisma.product.create({
+      data: {
+        empresaId: this.empresaId,
+        idproducto: this.idproducto,
+        nombre: this.nombre,
+        precio: this.precio,
+        descripcion: this.descripcion,
+        categoria: this.categoria,
+        stock: this.stock,
+        disponible: this.disponible
+      }
+    });
+  }
 }
 
 export default Producto;

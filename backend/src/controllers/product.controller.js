@@ -6,8 +6,7 @@ const PRODUCT_FIELDS = ['idproducto', 'nombre', 'precio', 'descripcion', 'catego
 class ProductController {
     static async listarProductos(req, res) {
         try {
-            const productoInstance = new Producto();
-            const productos = await productoInstance.obtenerTodos();
+            const productos = await Producto.obtenerTodos(req.user.empresaId);
             res.status(200).json({ productos });
         } catch (err) {
             console.error('Error listando productos:', err);
@@ -32,7 +31,7 @@ class ProductController {
                 return res.status(400).json({ mensaje: 'precio debe ser un número válido' });
             }
 
-            const nuevoProducto = new Producto(idproducto, nombre, precio, descripcion || '', categoria, stock, disponible);
+            const nuevoProducto = new Producto(req.user.empresaId, idproducto, nombre, precio, descripcion || '', categoria, stock, disponible);
             const savedProduct = await nuevoProducto.guardar();
             res.status(201).json({ mensaje: 'Producto creado', producto: savedProduct });
         } catch (err) {
@@ -45,8 +44,7 @@ class ProductController {
         const { id } = req.params;
         const disponible = toBoolean(req.body?.disponible, false);
 
-        const productoInstance = new Producto();
-        const actualizado = await productoInstance.actualizarPorId(id, { disponible });
+        const actualizado = await Producto.actualizarPorId(id, req.user.empresaId, { disponible });
 
         if (!actualizado) {
             return res.status(404).json({ mensaje: 'Producto no encontrado' });
@@ -62,8 +60,7 @@ class ProductController {
     static async eliminarProducto(req, res) {
         try {
             const { id } = req.params;
-            const productoInstance = new Producto();
-            const eliminado = await productoInstance.eliminarPorId(id);
+            const eliminado = await Producto.eliminarPorId(id, req.user.empresaId);
 
             if (!eliminado) {
                 return res.status(404).json({ mensaje: 'Producto no encontrado' });
@@ -91,8 +88,7 @@ class ProductController {
                 return res.status(400).json({ mensaje: 'precio debe ser un número válido' });
             }
 
-            const productoInstance = new Producto();
-            const actualizado = await productoInstance.actualizarPorId(id, datosActualizados);  
+            const actualizado = await Producto.actualizarPorId(id, req.user.empresaId, datosActualizados);  
             if (!actualizado) {
                 return res.status(404).json({ mensaje: 'Producto no encontrado' });
             }
@@ -105,8 +101,7 @@ class ProductController {
     static async obtenerProductoPorId(req, res) {
         try {
             const { id } = req.params;
-            const productoInstance = new Producto();
-            const producto = await productoInstance.obtenerPorId(id);
+            const producto = await Producto.obtenerPorId(id, req.user.empresaId);
             if (!producto) {
                 return res.status(404).json({ mensaje: 'Producto no encontrado' });
             }

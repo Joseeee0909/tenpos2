@@ -1,169 +1,295 @@
-import Pedido from "../models/pedidos.model.js"
-import Product from "../models/product.model.js"
+import prisma from "../lib/prisma.js";
+import { asNumber, asString, mapPedido } from "../lib/prismaUtils.js";
 
-// Crear pedido
+const pedidoInclude = {
+  mesa: true,
+  mesero: true,
+  productos: {
+    include: { producto: true }
+  }
+};
+
+const readItems = (productos) => Array.isArray(productos) ? productos : [];
+
+const normalizeItems = (productos) => readItems(productos).map((item) => ({
+  productoId: asString(item?.productoId, "") || null,
+  nombre: asString(item?.nombre, "Producto") || "Producto",
+  precio: asNumber(item?.precio, 0),
+  cantidad: Math.max(1, asNumber(item?.cantidad, 1))
+}));
+
+const getMesaForPayload = async (empresaId, payload) => {
+  const mesaId = asString(payload.mesaId || payload.mesa);
+  const mesaNumero = asNumber(payload.mesa, NaN);
+
+  if (mesaId && !Number.isFinite(mesaNumero)) {
+    return prisma.mesa.findFirst({
+      where: {
+        empresaId,
+        id: mesaId
+      }
+    });
+  }
+
+  if (!Number.isFinite(mesaNumero)) return null;
+
+  const existente = await prisma.mesa.findFirst({
+    where: {
+      empresaId,
+      numero: mesaNumero
+    }
+  });
+
+  if (existente) return existente;
+
+  return prisma.mesa.create({
+    data: {
+      empresaId,
+      numero: mesaNumero,
+      capacidad: 4,
+      estado: "disponible"
+    }
+  });
+};
+
+const validateStock = async (tx, empresaId, items) => {
+  const productIds = [...new Set(items.map((item) => item.productoId).filter(Boolean))];
+  if (!productIds.length) return [];
+
+  const products = await tx.product.findMany({
+    where: {
+      empresaId,
+      id: { in: productIds }
+    },
+    select: {
+      id: true,
+      nombre: true,
+      stock: true,
+      disponible: true
+    }
+  });
+
+  const stockById = new Map(products.map((product) => [product.id, product]));
+  return items.reduce((insufficient, item) => {
+    if (!item.productoId) return insufficient;
+
+    const product = stockById.get(item.productoId);
+    if (!product || product.disponible === false || product.stock < item.cantidad) {
+      insufficient.push({
+        productoId: item.productoId,
+        nombre: product?.nombre || item.nombre || "Producto",
+        stock: product?.stock ?? 0,
+        disponible: product?.disponible ?? false,
+        requerido: item.cantidad
+      });
+    }
+
+    return insufficient;
+  }, []);
+};
+
+const discountStock = async (tx, empresaId, items) => {
+  for (const item of items) {
+    if (!item.productoId) continue;
+    await tx.product.update({
+      where: {
+        id: item.productoId,
+        empresaId
+      },
+      data: {
+        stock: {
+          decrement: item.cantidad
+        }
+      }
+    });
+  }
+};
+
 export const crearPedido = async (req, res) => {
   try {
-    const payload = {
-      ...req.body,
-      responsable: String(req.body?.responsable || '').trim() || 'Sin asignar'
-    }
+    const empresaId = req.user.empresaId;
+    const payload = req.body || {};
+    const mesa = await getMesaForPayload(empresaId, payload);
+    const items = normalizeItems(payload.productos);
+    const total = asNumber(payload.total, NaN);
 
-    const items = Array.isArray(payload.productos) ? payload.productos : []
-    const productIds = items.map((item) => item?.productoId).filter(Boolean)
-    if (productIds.length) {
-      const products = await Product.find(
-        { _id: { $in: productIds } },
-        { stock: 1, nombre: 1, disponible: 1 }
-      )
+    if (!mesa) return res.status(400).json({ error: "Mesa requerida" });
+    if (!Number.isFinite(total)) return res.status(400).json({ error: "Total requerido" });
 
-      const stockById = new Map(products.map((p) => [String(p._id), p]))
-      const insufficient = []
-
-      items.forEach((item) => {
-        const product = stockById.get(String(item.productoId))
-        const qty = Math.max(0, Number(item.cantidad || 1))
-        if (!product || product.disponible === false || product.stock < qty) {
-          insufficient.push({
-            productoId: item.productoId,
-            nombre: product?.nombre || item?.nombre || 'Producto',
-            stock: product?.stock ?? 0,
-            disponible: product?.disponible ?? false,
-            requerido: qty
-          })
-        }
-      })
-
+    const pedido = await prisma.$transaction(async (tx) => {
+      const insufficient = await validateStock(tx, empresaId, items);
       if (insufficient.length) {
-        return res.status(409).json({
-          error: 'Producto no disponible o stock insuficiente para crear el pedido',
-          items: insufficient
-        })
+        const error = new Error("Producto no disponible o stock insuficiente para crear el pedido");
+        error.status = 409;
+        error.items = insufficient;
+        throw error;
       }
-    }
 
-    const pedido = new Pedido(payload)
+      const created = await tx.pedido.create({
+        data: {
+          empresaId,
+          mesaId: mesa.id,
+          meseroId: asString(payload.mesero || payload.meseroId) || req.user.id || null,
+          responsable: asString(payload.responsable, "Sin asignar") || "Sin asignar",
+          total,
+          estado: asString(payload.estado, "pendiente") || "pendiente",
+          productos: {
+            create: items.map((item) => ({
+              productoId: item.productoId,
+              nombre: item.nombre,
+              precio: item.precio,
+              cantidad: item.cantidad
+            }))
+          }
+        },
+        include: pedidoInclude
+      });
 
-    await pedido.save()
+      await tx.mesa.update({
+        where: { id: mesa.id },
+        data: { estado: "ocupada" }
+      });
 
-    res.status(201).json(pedido)
+      return created;
+    });
+
+    res.status(201).json(mapPedido(pedido));
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    if (error.status === 409) {
+      return res.status(409).json({ error: error.message, items: error.items });
+    }
+    res.status(500).json({ error: error.message });
   }
-}
+};
 
-// Obtener todos
 export const obtenerPedidos = async (req, res) => {
   try {
-    const pedidos = await Pedido.find()
-      .populate("mesero")
-      .populate("productos.productoId")
+    const pedidos = await prisma.pedido.findMany({
+      where: { empresaId: req.user.empresaId },
+      include: pedidoInclude,
+      orderBy: { fecha: "desc" }
+    });
 
-    res.json(pedidos)
+    res.json(pedidos.map(mapPedido));
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    res.status(500).json({ error: error.message });
   }
-}
+};
 
-// Obtener uno
 export const obtenerPedido = async (req, res) => {
   try {
-    const pedido = await Pedido.findById(req.params.id)
+    const pedido = await prisma.pedido.findFirst({
+      where: {
+        id: req.params.id,
+        empresaId: req.user.empresaId
+      },
+      include: pedidoInclude
+    });
 
-    res.json(pedido)
+    if (!pedido) return res.status(404).json({ error: "Pedido no encontrado" });
+    res.json(mapPedido(pedido));
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    res.status(500).json({ error: error.message });
   }
-}
+};
 
-// Actualizar
 export const actualizarPedido = async (req, res) => {
   try {
-    const actual = await Pedido.findById(req.params.id)
-    if (!actual) {
-      return res.status(404).json({ error: 'Pedido no encontrado' })
-    }
+    const empresaId = req.user.empresaId;
+    const actual = await prisma.pedido.findFirst({
+      where: {
+        id: req.params.id,
+        empresaId
+      },
+      include: { productos: true, mesa: true }
+    });
 
-    const responsable = String(req.body?.responsable || '').trim() || actual.responsable || 'Sin asignar'
+    if (!actual) return res.status(404).json({ error: "Pedido no encontrado" });
 
-    const nextEstado = String(req.body?.estado || actual.estado || '').toLowerCase()
+    const nextEstado = asString(req.body?.estado, actual.estado).toLowerCase();
+    const prevEstado = asString(actual.estado).toLowerCase();
+    const replaceItems = Array.isArray(req.body?.productos);
+    const items = replaceItems ? normalizeItems(req.body.productos) : actual.productos;
 
-    const prevEstado = String(actual.estado || '').toLowerCase()
-
-    // Descontar stock solo cuando el pedido pasa a "entregado"
-    if (prevEstado !== 'entregado' && nextEstado === 'entregado') {
-      const items = Array.isArray(actual.productos) ? actual.productos : []
-      const productIds = items.map((item) => item?.productoId).filter(Boolean)
-
-      if (productIds.length) {
-        const products = await Product.find(
-          { _id: { $in: productIds } },
-          { stock: 1, nombre: 1 }
-        )
-
-        const stockById = new Map(products.map((p) => [String(p._id), p]))
-        const insufficient = []
-
-        items.forEach((item) => {
-          const product = stockById.get(String(item.productoId))
-          const qty = Math.max(0, Number(item.cantidad || 1))
-          if (!product || product.stock < qty) {
-            insufficient.push({
-              productoId: item.productoId,
-              nombre: product?.nombre || item?.nombre || 'Producto',
-              stock: product?.stock ?? 0,
-              requerido: qty
-            })
-          }
-        })
-
+    const pedido = await prisma.$transaction(async (tx) => {
+      if (prevEstado !== "entregado" && nextEstado === "entregado") {
+        const insufficient = await validateStock(tx, empresaId, items);
         if (insufficient.length) {
-          return res.status(409).json({
-            error: 'Stock insuficiente para completar el pedido',
-            items: insufficient
-          })
+          const error = new Error("Stock insuficiente para completar el pedido");
+          error.status = 409;
+          error.items = insufficient;
+          throw error;
         }
+        await discountStock(tx, empresaId, items);
+      }
 
-        const updates = items.map((item) => ({
-          updateOne: {
-            filter: { _id: item.productoId },
-            update: { $inc: { stock: -Math.abs(Number(item.cantidad || 1)) } }
+      const data = {
+        responsable: asString(req.body?.responsable, actual.responsable) || "Sin asignar",
+        estado: nextEstado,
+        total: typeof req.body?.total !== "undefined" ? asNumber(req.body.total, actual.total) : actual.total
+      };
+
+      if (replaceItems) {
+        data.productos = {
+          deleteMany: {},
+          create: items.map((item) => ({
+            productoId: item.productoId,
+            nombre: item.nombre,
+            precio: item.precio,
+            cantidad: item.cantidad
+          }))
+        };
+      }
+
+      const updated = await tx.pedido.update({
+        where: { id: actual.id },
+        data,
+        include: pedidoInclude
+      });
+
+      if (nextEstado === "entregado") {
+        const active = await tx.pedido.count({
+          where: {
+            empresaId,
+            mesaId: actual.mesaId,
+            estado: { not: "entregado" }
           }
-        }))
-
-        if (updates.length) {
-          await Product.bulkWrite(updates)
+        });
+        if (active === 0) {
+          await tx.mesa.update({
+            where: { id: actual.mesaId },
+            data: { estado: "disponible" }
+          });
         }
       }
-    }
 
-    const pedido = await Pedido.findByIdAndUpdate(
-      req.params.id,
-      {
-        ...req.body,
-        responsable
-      },
-      { new: true }
-    )
+      return updated;
+    });
 
-    // La venta se crea cuando el pago se confirma en el modulo de cobro.
-
-    res.json(pedido)
+    res.json(mapPedido(pedido));
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    if (error.status === 409) {
+      return res.status(409).json({ error: error.message, items: error.items });
+    }
+    res.status(500).json({ error: error.message });
   }
-}
+};
 
-// Eliminar
 export const eliminarPedido = async (req, res) => {
   try {
-    await Pedido.findByIdAndDelete(req.params.id)
+    const pedido = await prisma.pedido.findFirst({
+      where: {
+        id: req.params.id,
+        empresaId: req.user.empresaId
+      }
+    });
 
-    res.json({ mensaje: "Pedido eliminado" })
+    if (!pedido) return res.status(404).json({ error: "Pedido no encontrado" });
+
+    await prisma.pedido.delete({ where: { id: pedido.id } });
+
+    res.json({ mensaje: "Pedido eliminado" });
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    res.status(500).json({ error: error.message });
   }
-}
-
-
-
+};

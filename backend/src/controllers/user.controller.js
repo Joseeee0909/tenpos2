@@ -5,7 +5,7 @@ const USER_UPDATE_FIELDS = ['idusuario', 'nombre', 'username', 'email', 'passwor
 
 const listarUsuarios = async (req, res) => {
   try {
-    const usuarios = await Usuario.obtenerTodos();
+    const usuarios = await Usuario.obtenerTodos(req.user.empresaId);
     res.json(usuarios);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -15,7 +15,7 @@ const listarUsuarios = async (req, res) => {
 const desactivarUsuario = async (req, res) => {
   try {
     const id = req.params.id;
-    await Usuario.desactivar(id);
+    await Usuario.desactivar(id, req.user.empresaId);
     res.json({ mensaje: "Usuario desactivado" });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -25,7 +25,7 @@ const desactivarUsuario = async (req, res) => {
 const activarUsuario = async (req, res) => {
   try {
     const id = req.params.id;
-    await Usuario.activar(id);
+    await Usuario.activar(id, req.user.empresaId);
     res.json({ mensaje: "Usuario activado" });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -42,7 +42,7 @@ const actualizar = async (req, res) => {
     if ('rol' in datosActualizados) datosActualizados.rol = toTrimmedString(datosActualizados.rol);
     if ('activo' in datosActualizados) datosActualizados.activo = toBoolean(datosActualizados.activo, true);
 
-    const usuarioActualizado = await Usuario.actualizar(id, datosActualizados);
+    const usuarioActualizado = await Usuario.actualizar(id, req.user.empresaId, datosActualizados);
     res.json(usuarioActualizado);
   } catch (error) {
     res.status(500).json({ error: error.message });

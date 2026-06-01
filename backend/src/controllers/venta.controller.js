@@ -1,6 +1,15 @@
-import Venta from "../models/venta.model.js";
+import prisma from "../lib/prisma.js";
+import { asNumber, asString, mapVenta } from "../lib/prismaUtils.js";
 
 const VAT_RATE = 0.19;
+
+const ventaInclude = {
+  mesero: true,
+  pedido: true,
+  items: {
+    include: { producto: true }
+  }
+};
 
 const computeTotalsFromTotal = (total, rate = VAT_RATE) => {
   const safeTotal = Math.round(Number(total || 0));
@@ -16,31 +25,63 @@ const computeTotalsFromTotal = (total, rate = VAT_RATE) => {
 
 const buildSaleNumber = () => `V-${Date.now()}`;
 
+const normalizeItems = (productos) => Array.isArray(productos)
+  ? productos.map((item) => {
+      const cantidad = Math.max(1, asNumber(item?.cantidad, 1));
+      const precio = asNumber(item?.precio, 0);
+      return {
+        productoId: asString(item?.productoId) || null,
+        nombre: asString(item?.nombre, "Producto") || "Producto",
+        cantidad,
+        precio,
+        total: typeof item?.total !== "undefined" ? asNumber(item.total, cantidad * precio) : cantidad * precio
+      };
+    })
+  : [];
+
 export const crearVenta = async (req, res) => {
   try {
+    const empresaId = req.user.empresaId;
     const payload = req.body || {};
-    const numero = payload.numero || buildSaleNumber();
-    const total = Number(payload.total || 0);
-    if (!total) {
+    const numero = asString(payload.numero, buildSaleNumber()) || buildSaleNumber();
+    const total = asNumber(payload.total, NaN);
+
+    if (!Number.isFinite(total) || !total) {
       return res.status(400).json({ error: "El total es obligatorio" });
     }
 
     const totals = payload.subtotal != null && payload.iva != null
-      ? { subtotal: Number(payload.subtotal), iva: Number(payload.iva) }
+      ? { subtotal: asNumber(payload.subtotal, 0), iva: asNumber(payload.iva, 0) }
       : computeTotalsFromTotal(total, VAT_RATE);
 
-    const venta = new Venta({
-      ...payload,
-      numero,
-      total,
-      subtotal: totals.subtotal,
-      iva: totals.iva,
-      estado: payload.estado || "completada"
+    const venta = await prisma.venta.create({
+      data: {
+        empresaId,
+        numero,
+        pedidoId: asString(payload.pedidoId) || null,
+        mesa: typeof payload.mesa !== "undefined" ? asNumber(payload.mesa, null) : null,
+        cliente: asString(payload.cliente),
+        meseroId: asString(payload.mesero || payload.meseroId) || req.user.id || null,
+        subtotal: totals.subtotal,
+        iva: totals.iva,
+        propina: asNumber(payload.propina, 0),
+        total,
+        metodoPago: asString(payload.metodoPago, "Efectivo") || "Efectivo",
+        estado: asString(payload.estado, "completada") || "completada",
+        items: {
+          create: normalizeItems(payload.productos).map((item) => ({
+            productoId: item.productoId,
+            nombre: item.nombre,
+            cantidad: item.cantidad,
+            precio: item.precio,
+            total: item.total
+          }))
+        }
+      },
+      include: ventaInclude
     });
 
-    await venta.save();
-
-    res.status(201).json(venta);
+    res.status(201).json(mapVenta(venta));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -49,46 +90,44 @@ export const crearVenta = async (req, res) => {
 export const obtenerVentas = async (req, res) => {
   try {
     const { from, to, status, q, sort } = req.query || {};
-    const filters = {};
+    const where = { empresaId: req.user.empresaId };
 
     if (status && status !== "all") {
-      filters.estado = status;
+      where.estado = String(status);
     }
 
     if (from || to) {
-      filters.fecha = {};
-      if (from) filters.fecha.$gte = new Date(from);
-      if (to) filters.fecha.$lte = new Date(to);
+      where.fecha = {};
+      if (from) where.fecha.gte = new Date(from);
+      if (to) where.fecha.lte = new Date(to);
     }
 
     if (q) {
-      const regex = new RegExp(String(q), "i");
       const possibleMesa = Number(q);
-      filters.$or = [
-        { numero: regex },
-        { cliente: regex }
+      where.OR = [
+        { numero: { contains: String(q), mode: "insensitive" } },
+        { cliente: { contains: String(q), mode: "insensitive" } }
       ];
       if (Number.isFinite(possibleMesa)) {
-        filters.$or.push({ mesa: possibleMesa });
+        where.OR.push({ mesa: possibleMesa });
       }
     }
 
     const sortMap = {
-      "date-desc": { fecha: -1 },
-      "date-asc": { fecha: 1 },
-      "amount-desc": { total: -1 },
-      "amount-asc": { total: 1 }
+      "date-desc": { fecha: "desc" },
+      "date-asc": { fecha: "asc" },
+      "amount-desc": { total: "desc" },
+      "amount-asc": { total: "asc" }
     };
 
-    const sortValue = sortMap[sort] || { fecha: -1 };
+    const ventas = await prisma.venta.findMany({
+      where,
+      include: ventaInclude,
+      orderBy: sortMap[sort] || { fecha: "desc" },
+      take: 500
+    });
 
-    const ventas = await Venta.find(filters)
-      .populate('mesero')
-      .populate('productos.productoId')
-      .sort(sortValue)
-      .limit(500);
-
-    res.json(ventas);
+    res.json(ventas.map(mapVenta));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -96,11 +135,16 @@ export const obtenerVentas = async (req, res) => {
 
 export const obtenerVenta = async (req, res) => {
   try {
-    const venta = await Venta.findById(req.params.id)
-      .populate('mesero')
-      .populate('productos.productoId');
+    const venta = await prisma.venta.findFirst({
+      where: {
+        id: req.params.id,
+        empresaId: req.user.empresaId
+      },
+      include: ventaInclude
+    });
+
     if (!venta) return res.status(404).json({ error: "Venta no encontrada" });
-    res.json(venta);
+    res.json(mapVenta(venta));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -108,9 +152,44 @@ export const obtenerVenta = async (req, res) => {
 
 export const actualizarVenta = async (req, res) => {
   try {
-    const venta = await Venta.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!venta) return res.status(404).json({ error: "Venta no encontrada" });
-    res.json(venta);
+    const actual = await prisma.venta.findFirst({
+      where: {
+        id: req.params.id,
+        empresaId: req.user.empresaId
+      }
+    });
+
+    if (!actual) return res.status(404).json({ error: "Venta no encontrada" });
+
+    const data = {};
+    for (const field of ["numero", "cliente", "metodoPago", "estado"]) {
+      if (typeof req.body?.[field] !== "undefined") data[field] = asString(req.body[field]);
+    }
+    for (const field of ["mesa", "subtotal", "iva", "propina", "total"]) {
+      if (typeof req.body?.[field] !== "undefined") data[field] = asNumber(req.body[field], actual[field]);
+    }
+
+    if (typeof req.body?.productos !== "undefined") {
+      const items = normalizeItems(req.body.productos);
+      data.items = {
+        deleteMany: {},
+        create: items.map((item) => ({
+          productoId: item.productoId,
+          nombre: item.nombre,
+          cantidad: item.cantidad,
+          precio: item.precio,
+          total: item.total
+        }))
+      };
+    }
+
+    const venta = await prisma.venta.update({
+      where: { id: actual.id },
+      data,
+      include: ventaInclude
+    });
+
+    res.json(mapVenta(venta));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -118,7 +197,16 @@ export const actualizarVenta = async (req, res) => {
 
 export const eliminarVenta = async (req, res) => {
   try {
-    await Venta.findByIdAndDelete(req.params.id);
+    const venta = await prisma.venta.findFirst({
+      where: {
+        id: req.params.id,
+        empresaId: req.user.empresaId
+      }
+    });
+
+    if (!venta) return res.status(404).json({ error: "Venta no encontrada" });
+
+    await prisma.venta.delete({ where: { id: venta.id } });
     res.json({ mensaje: "Venta eliminada" });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -127,8 +215,11 @@ export const eliminarVenta = async (req, res) => {
 
 export const limpiarVentas = async (req, res) => {
   try {
-    const result = await Venta.deleteMany({});
-    res.json({ mensaje: "Ventas eliminadas", eliminadas: result.deletedCount || 0 });
+    const result = await prisma.venta.deleteMany({
+      where: { empresaId: req.user.empresaId }
+    });
+
+    res.json({ mensaje: "Ventas eliminadas", eliminadas: result.count || 0 });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
