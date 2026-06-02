@@ -226,16 +226,29 @@ const closeModal = (key) => {
       setModals((p) => ({ ...p, success: true }));
 
       if (result?.factura?.numero) {
-        const res = await authService.api.get(
-          `/facturas/${result.factura.numero}/pdf`,
-          { responseType: 'blob' }
-        );
+        // Prefer inline base64 returned by the API
+        if (result.pdfBase64) {
+          const byteCharacters = atob(result.pdfBase64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: 'application/pdf' });
+          const url = window.URL.createObjectURL(blob);
+          window.open(url, '_blank');
+        } else {
+          const res = await authService.api.get(
+            `/facturas/${result.factura.numero}/pdf`,
+            { responseType: 'blob' }
+          );
 
-        const url = window.URL.createObjectURL(
-          new Blob([res.data], { type: 'application/pdf' })
-        );
+          const url = window.URL.createObjectURL(
+            new Blob([res.data], { type: 'application/pdf' })
+          );
 
-        window.open(url, '_blank');
+          window.open(url, '_blank');
+        }
       }
     } catch (e) {
       pushNotice('Error completando venta', 'error');
