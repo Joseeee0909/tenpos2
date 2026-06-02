@@ -25,7 +25,7 @@ export default function Register() {
     const load = async () => {
       try {
         const rs = await authService.getRoles();
-        // rs is array of { _id, nombre, descripcion }
+        // rs is array of { id, nombre, descripcion }
         setRoles(rs.map(r => ({ value: r.nombre, label: r.nombre, descripcion: r.descripcion })));
       } catch (err) {
         console.error('No se pudieron cargar roles', err);

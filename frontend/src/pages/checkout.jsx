@@ -42,7 +42,7 @@ const readTaxSettings = () => {
 const getCurrentUserId = () => {
   try {
     const user = JSON.parse(localStorage.getItem('usuario') || '{}');
-    return user?._id || null;
+    return user?.id || null;
   } catch {
     return null;
   }
@@ -195,13 +195,13 @@ export default function CheckoutPage() {
   };
 
   const handleDeletePedido = async () => {
-    if (!pedido?._id) return;
+    if (!pedido?.id) return;
     try {
-      await authService.eliminarPedido(pedido._id);
+      await authService.eliminarPedido(pedido.id);
       const mesas = await authService.getMesas();
       const mesa = (Array.isArray(mesas) ? mesas : []).find((m) => Number(m.numero) === mesaNumero);
       if (mesa) {
-        await authService.actualizarMesa(mesa._id, { estado: 'disponible', pedido: null });
+        await authService.actualizarMesa(mesa.id, { estado: 'disponible', pedido: null });
       }
       pushNotice('Pedido eliminado y mesa liberada.', 'success');
       closeModal('delete');
@@ -222,13 +222,13 @@ export default function CheckoutPage() {
   };
 
   const openPreviewPdf = () => {
-    if (!pedido?._id) {
+    if (!pedido?.id) {
       pushNotice('No hay pedido para imprimir.', 'warning');
       return;
     }
     const baseUrl = import.meta.env.VITE_API_URL || '';
     const params = new URLSearchParams({
-      pedidoId: pedido._id,
+      pedidoId: pedido.id,
       incluirPropina: includeTip ? 'true' : 'false',
       propinaPercent: String(tipPercent ?? 0),
       vatPercent: String(taxSettings.vatPercent ?? 19),
@@ -239,11 +239,11 @@ export default function CheckoutPage() {
   };
 
   const handleCompleteSale = async () => {
-    if (!pedido?._id) return;
+    if (!pedido?.id) return;
 
     try {
       const payload = {
-        pedidoId: pedido._id,
+        pedidoId: pedido.id,
         cliente: { nombre: 'Consumidor Final', documento: '000000' },
         metodoPago: paymentMethod === 'cash' ? 'Efectivo' : paymentMethod === 'card' ? 'Tarjeta' : paymentMethod === 'transfer' ? 'Transferencia' : 'QR',
         incluirPropina: includeTip,
@@ -302,7 +302,7 @@ export default function CheckoutPage() {
         </div>
         <div className="ph-text">
           <div className="ph-title">Completar Venta</div>
-          <div className="ph-sub">Mesa {mesaNumero} • Pedido #{String(pedido._id || '').slice(-4).toUpperCase()}</div>
+          <div className="ph-sub">Mesa {mesaNumero} • Pedido #{String(pedido.id || '').slice(-4).toUpperCase()}</div>
         </div>
         <div className="ph-badge">
           <svg viewBox="0 0 12 12" fill="currentColor">

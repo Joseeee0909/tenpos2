@@ -11,6 +11,12 @@ import RolesPage from './pages/roles.jsx';
 import UserPage from './pages/user.jsx';
 import Register from './pages/register.jsx';
 import CheckoutPage from './pages/checkout.jsx';
+
+import ReportesPage from './pages/ReportsTab.jsx';
+import SessionPage from './pages/SessionsTab.jsx';
+import HistorialPage from './pages/MyHistoryTab.jsx';
+import ActivityTab from './pages/ActivityTab.jsx';
+
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppShell from './components/AppShell';
@@ -78,6 +84,39 @@ function RoutesWrapper() {
             </ProtectedRoute>
           )}
         />
+        <Route
+          path="/utilidades/Historial"
+          element={(
+            <ProtectedRoute allowedPermissions={['ver_utilidades', 'gestionar_utilidades']}>
+              <HistorialPage />
+            </ProtectedRoute>
+          )}
+        />
+          <Route
+          path="/utilidades/Reportes"
+          element={(
+            <ProtectedRoute allowedPermissions={['ver_utilidades', 'gestionar_utilidades']}>
+              <ReportesPage />
+            </ProtectedRoute>
+          )}
+        />
+          <Route
+          path="/utilidades/Sesiones"
+          element={(
+            <ProtectedRoute allowedPermissions={['ver_utilidades', 'gestionar_utilidades']}>
+              <SessionPage />
+            </ProtectedRoute>
+          )}
+        />
+          <Route
+          path="/utilidades"
+          element={(
+            <ProtectedRoute allowedPermissions={['ver_utilidades', 'gestionar_utilidades']}>
+              <ActivityTab />
+            </ProtectedRoute>
+          )}
+        />
+
         <Route
           path="/pedidos"
           element={(

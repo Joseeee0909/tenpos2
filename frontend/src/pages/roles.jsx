@@ -77,7 +77,8 @@ export default function RolesPage() {
       setUsers(Array.isArray(usersData) ? usersData : []);
 
       const normalizedRoles = (Array.isArray(rolesData) ? rolesData : []).map((role) => ({
-        _id: role._id,
+        id: role.id,
+        empresaId: role.empresaId,
         idrol: role.idrol,
         nombre: role.nombre || 'Rol',
         descripcion: role.descripcion || 'Sin descripcion',
@@ -224,7 +225,7 @@ export default function RolesPage() {
     setSaving(true);
     try {
       if (editingRole) {
-        await authService.updateRole(editingRole._id, payload);
+        await authService.updateRole(editingRole.id, payload);
         pushNotice('Rol actualizado correctamente.', 'success');
       } else {
         await authService.createRole(payload);
@@ -258,9 +259,9 @@ export default function RolesPage() {
     setToggling(true);
     try {
       if (toggleRole.activo) {
-        await authService.deactivateRole(toggleRole._id);
+        await authService.deactivateRole(toggleRole.id);
       } else {
-        await authService.activateRole(toggleRole._id);
+        await authService.activateRole(toggleRole.id);
       }
 
       pushNotice(toggleRole.activo ? 'Rol desactivado correctamente.' : 'Rol reactivado correctamente.', 'success');
@@ -338,7 +339,7 @@ export default function RolesPage() {
             const icon = EMOJIS[normalize(role.nombre)] || '🔑';
 
             return (
-              <div key={role._id} className={`role-card ${role.activo ? '' : 'off'}`}>
+              <div key={role.id} className={`role-card ${role.activo ? '' : 'off'}`}>
                 <div className="role-card-top">
                   <div className="role-color-dot" style={{ background: `${role.color}20` }}>
                     <span style={{ fontSize: '20px' }}>{icon}</span>

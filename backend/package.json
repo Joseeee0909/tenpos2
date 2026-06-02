@@ -3,12 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon index.js",
-    "create:root": "node scripts/createRootUser.js",
-    "prisma:generate": "prisma generate --config prisma.config.ts",
-    "prisma:migrate": "prisma migrate dev --config prisma.config.ts",
-    "prisma:push": "prisma db push --config prisma.config.ts",
-    "prisma:studio": "prisma studio --config prisma.config.ts"
+    "dev": "nodemon index.js"
   },
   "keywords": [],
   "author": "",

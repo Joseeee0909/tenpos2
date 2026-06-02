@@ -9,40 +9,41 @@ datasource db {
 }
 
 model Empresa {
-  id             String          @id @default(uuid())
-  nombre         String
-  slug           String          @unique
-  activo         Boolean         @default(true)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  usuarios       Usuario[]
-  roles          Rol[]
-  productos      Product[]
-  mesas          Mesa[]
-  pedidos        Pedido[]
-  ventas         Venta[]
-  facturas       Factura[]
-  configuracion  Configuracion?
-
+  id            String         @id @default(uuid())
+  nombre        String
+  slug          String         @unique
+  activo        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  usuarios      Usuario[]
+  roles         Rol[]
+  productos     Product[]
+  mesas         Mesa[]
+  pedidos       Pedido[]
+  ventas        Venta[]
+  facturas      Factura[]
+  configuracion Configuracion?
+  auditoria     Auditoria[]
 }
 
 model Usuario {
-  id          String   @id @default(uuid())
-  empresaId   String
-  empresa     Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  idusuario   String
-  nombre      String
-  username    String
-  email       String
-  password    String
-  rolId       String?
-  rol         Rol?     @relation(fields: [rolId], references: [id], onDelete: SetNull)
-  activo      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  pedidos     Pedido[] @relation("PedidoMesero")
-  ventas      Venta[]  @relation("VentaMesero")
-  facturas    Factura[] @relation("FacturaMesero")
+  id        String      @id @default(uuid())
+  empresaId String
+  empresa   Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  idusuario String
+  nombre    String
+  username  String    
+  email     String
+  password  String
+  rolId     String?
+  rol       Rol?        @relation(fields: [rolId], references: [id], onDelete: SetNull)
+  activo    Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  pedidos   Pedido[]    @relation("PedidoMesero")
+  ventas    Venta[]     @relation("VentaMesero")
+  facturas  Factura[]   @relation("FacturaMesero")
+  Auditoria Auditoria[]
 
   @@unique([empresaId, idusuario])
   @@unique([empresaId, username])
@@ -51,17 +52,17 @@ model Usuario {
 }
 
 model Rol {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   empresaId   String
-  empresa     Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresa     Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   idrol       String
   nombre      String
-  descripcion String   @default("")
-  color       String   @default("#7c3aed")
-  permisos    String[] @default([])
-  activo      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  descripcion String    @default("")
+  color       String    @default("#7c3aed")
+  permisos    String[]  @default([])
+  activo      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   usuarios    Usuario[]
 
   @@unique([empresaId, idrol])
@@ -70,20 +71,20 @@ model Rol {
 }
 
 model Product {
-  id          String   @id @default(uuid())
-  empresaId   String
-  empresa     Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  idproducto  String
-  nombre      String
-  precio      Decimal  @db.Decimal(12, 2)
-  descripcion String   @default("")
-  categoria   String
-  stock       Int      @default(0)
-  disponible  Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  pedidoItems PedidoItem[]
-  ventaItems  VentaItem[]
+  id           String        @id @default(uuid())
+  empresaId    String
+  empresa      Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  idproducto   String
+  nombre       String
+  precio       Decimal       @db.Decimal(12, 2)
+  descripcion  String        @default("")
+  categoria    String
+  stock        Int           @default(0)
+  disponible   Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  pedidoItems  PedidoItem[]
+  ventaItems   VentaItem[]
   facturaItems FacturaItem[]
 
   @@unique([empresaId, idproducto])
@@ -92,35 +93,35 @@ model Product {
 }
 
 model Mesa {
-  id          String   @id @default(uuid())
-  empresaId   String
-  empresa     Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  numero      Int
-  capacidad   Int      @default(4)
-  estado      String   @default("disponible")
-  pedidos     Pedido[] @relation("MesaPedidos")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  numero    Int
+  capacidad Int      @default(4)
+  estado    String   @default("disponible")
+  pedidos   Pedido[] @relation("MesaPedidos")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([empresaId, numero])
   @@index([empresaId, estado])
 }
 
 model Pedido {
-  id           String        @id @default(uuid())
-  empresaId    String
-  empresa      Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  mesaId       String
-  mesa         Mesa          @relation("MesaPedidos", fields: [mesaId], references: [id], onDelete: Restrict)
-  meseroId     String?
-  mesero       Usuario?      @relation("PedidoMesero", fields: [meseroId], references: [id], onDelete: SetNull)
-  responsable  String        @default("Sin asignar")
-  total        Decimal       @db.Decimal(12, 2)
-  estado       String        @default("pendiente")
-  fecha        DateTime      @default(now())
-  productos    PedidoItem[]
-  ventas       Venta[]
-  facturas     Factura[]
+  id          String       @id @default(uuid())
+  empresaId   String
+  empresa     Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  mesaId      String
+  mesa        Mesa         @relation("MesaPedidos", fields: [mesaId], references: [id], onDelete: Restrict)
+  meseroId    String?
+  mesero      Usuario?     @relation("PedidoMesero", fields: [meseroId], references: [id], onDelete: SetNull)
+  responsable String       @default("Sin asignar")
+  total       Decimal      @db.Decimal(12, 2)
+  estado      String       @default("pendiente")
+  fecha       DateTime     @default(now())
+  productos   PedidoItem[]
+  ventas      Venta[]
+  facturas    Factura[]
 
   @@index([empresaId, estado])
   @@index([empresaId, mesaId])
@@ -142,25 +143,25 @@ model PedidoItem {
 }
 
 model Venta {
-  id          String      @id @default(uuid())
-  empresaId   String
-  empresa     Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  numero      String
-  pedidoId    String?
-  pedido      Pedido?     @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
-  mesa        Int?
-  cliente     String      @default("")
-  meseroId    String?
-  mesero      Usuario?    @relation("VentaMesero", fields: [meseroId], references: [id], onDelete: SetNull)
-  subtotal    Decimal     @db.Decimal(12, 2)
-  iva         Decimal     @db.Decimal(12, 2) @default(0)
-  propina     Decimal     @db.Decimal(12, 2) @default(0)
-  total       Decimal     @db.Decimal(12, 2)
-  metodoPago  String      @default("Efectivo")
-  estado      String      @default("completada")
-  fecha       DateTime    @default(now())
-  items       VentaItem[]
-  facturas    Factura[]
+  id         String      @id @default(uuid())
+  empresaId  String
+  empresa    Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  numero     String
+  pedidoId   String?
+  pedido     Pedido?     @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
+  mesa       Int?
+  cliente    String      @default("")
+  meseroId   String?
+  mesero     Usuario?    @relation("VentaMesero", fields: [meseroId], references: [id], onDelete: SetNull)
+  subtotal   Decimal     @db.Decimal(12, 2)
+  iva        Decimal     @default(0) @db.Decimal(12, 2)
+  propina    Decimal     @default(0) @db.Decimal(12, 2)
+  total      Decimal     @db.Decimal(12, 2)
+  metodoPago String      @default("Efectivo")
+  estado     String      @default("completada")
+  fecha      DateTime    @default(now())
+  items      VentaItem[]
+  facturas   Factura[]
 
   @@unique([empresaId, numero])
   @@index([empresaId, estado])
@@ -183,27 +184,27 @@ model VentaItem {
 }
 
 model Factura {
-  id          String      @id @default(uuid())
-  empresaId   String
-  empresa     Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  numero      String
-  emisor      Json
-  cliente     Json
-  subtotal    Decimal     @db.Decimal(12, 2)
-  ivaTotal    Decimal     @db.Decimal(12, 2) @default(0)
-  propina     Decimal     @db.Decimal(12, 2) @default(0)
-  total       Decimal     @db.Decimal(12, 2)
-  metodoPago  String
-  ventaId     String?
-  venta       Venta?      @relation(fields: [ventaId], references: [id], onDelete: SetNull)
-  pedidoId    String?
-  pedido      Pedido?     @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
-  meseroId    String?
-  mesero      Usuario?    @relation("FacturaMesero", fields: [meseroId], references: [id], onDelete: SetNull)
-  mesa        Int?
-  pdfPath     String?
-  fecha       DateTime    @default(now())
-  items       FacturaItem[]
+  id         String        @id @default(uuid())
+  empresaId  String
+  empresa    Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  numero     String
+  emisor     Json
+  cliente    Json
+  subtotal   Decimal       @db.Decimal(12, 2)
+  ivaTotal   Decimal       @default(0) @db.Decimal(12, 2)
+  propina    Decimal       @default(0) @db.Decimal(12, 2)
+  total      Decimal       @db.Decimal(12, 2)
+  metodoPago String
+  ventaId    String?
+  venta      Venta?        @relation(fields: [ventaId], references: [id], onDelete: SetNull)
+  pedidoId   String?
+  pedido     Pedido?       @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
+  meseroId   String?
+  mesero     Usuario?      @relation("FacturaMesero", fields: [meseroId], references: [id], onDelete: SetNull)
+  mesa       Int?
+  pdfPath    String?
+  fecha      DateTime      @default(now())
+  items      FacturaItem[]
 
   @@unique([empresaId, numero])
   @@index([empresaId, fecha])
@@ -224,20 +225,47 @@ model FacturaItem {
 }
 
 model Configuracion {
-  id            String   @id @default(uuid())
-  empresaId     String   @unique
-  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  clave         String   @default("facturacion")
-  nombre        String   @default("SIIGO S.A.S")
-  nit           String   @default("800200100-0")
-  direccion     String   @default("Cali, Colombia")
-  telefono      String   @default("")
-  resolucion    String   @default("")
-  autorizada    String   @default("")
-  prefijo       String   @default("POS - 1")
-  responsable   String   @default("Responsable de IVA")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String   @id @default(uuid())
+  empresaId   String   @unique
+  empresa     Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  clave       String   @default("facturacion")
+  nombre      String   @default("SIIGO S.A.S")
+  nit         String   @default("800200100-0")
+  direccion   String   @default("Cali, Colombia")
+  telefono    String   @default("")
+  resolucion  String   @default("")
+  autorizada  String   @default("")
+  prefijo     String   @default("POS - 1")
+  responsable String   @default("Responsable de IVA")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([empresaId, clave])
+}
+
+model Auditoria {
+  id         String   @id @default(uuid())
+  empresaId  String
+  empresa    Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  usuarioId  String?
+  usuario    Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  tipo       String
+  accion     String
+  modulo     String
+  detalle    String   @default("")
+  exito      Boolean  @default(true)
+  nivel      String   @default("info")
+  metodo     String?
+  ruta       String?
+  statusCode Int?
+  duracionMs Int?
+  ip         String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([empresaId, createdAt])
+  @@index([empresaId, usuarioId, createdAt])
+  @@index([empresaId, tipo, createdAt])
+  @@index([empresaId, accion, createdAt])
 }

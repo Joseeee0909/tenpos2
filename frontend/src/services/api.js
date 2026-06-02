@@ -45,8 +45,8 @@ const getUsers = async () => {
 };
 
 // Crear usuario
-const createUser = async ({ nombre, username, email, password, rol }) => {
-  const payload = { nombre, username, email, password, rol };
+const createUser = async ({ nombre, username, empresaSlug, email, password, rol }) => {
+  const payload = { nombre, username, empresaSlug, email, password, rol };
   const res = await api.post("/usuarios", payload);
   return res.data;
 };
@@ -99,8 +99,8 @@ const activateRole = async (id) => {
 /* ---------------------------------------------------
    🔹 AUTH
 --------------------------------------------------- */
-const login = async (username, password) => {
-  const res = await api.post("/login", { username, password });
+const login = async (username, password, empresaSlug) => {
+  const res = await api.post("/login", { username, password, empresaSlug });
   return res.data;
 };
 
@@ -190,6 +190,44 @@ const actualizarPedido = async (id, data) => {
 
 const eliminarPedido = async (id) => {
   const res = await api.delete(`/pedidos/${id}`);
+  return res.data;
+};
+/* ---------------------------------------------------
+   🔹 REPORTES
+--------------------------------------------------- */
+
+// logs
+ const getLogs = async (params) => {
+  const res = await api.get('/auditoria/logs', { params });
+  return res.data;
+};
+
+// sesiones
+ const getSessions = async () => {
+  const res = await api.get('/auditoria/sesiones');
+  return res.data;
+};
+
+// reporte
+ const getReport = async (params) => {
+  const res = await api.get('/auditoria/reporte', { params });
+  return res.data;
+};
+
+// mi historial
+ const getMyHistory = async (params) => {
+  const res = await api.get('/auditoria/historial', { params });
+  return res.data;
+};
+
+// evento frontend
+export const sendAuditEvent = async (data) => {
+  const res = await api.post('/auditoria/eventos', data);
+  return res.data;
+};
+
+const logAccess = async (data) => {
+  const res = await api.post('/auditoria/acceso', data);
   return res.data;
 };
 
@@ -286,5 +324,11 @@ export default {
   crearVenta,
   actualizarVenta,
   eliminarVenta,
-  getDashboardSummary
+  getDashboardSummary,
+  getLogs,
+  getSessions,
+  getReport,
+  getMyHistory,
+  sendAuditEvent,
+  logAccess
 };

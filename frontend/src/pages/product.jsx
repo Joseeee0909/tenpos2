@@ -73,7 +73,7 @@ export default function ProductsPage() {
       const normalized = (Array.isArray(data) ? data : []).map((p) => {
         const cat = normalizeCategory(p.categoria);
         return {
-          _id: p._id,
+          id: p.id,
           idproducto: p.idproducto || '',
           nombre: p.nombre || 'Producto',
           categoria: cat,
@@ -168,7 +168,7 @@ export default function ProductsPage() {
   };
 
   const openEdit = (product) => {
-    setEditingId(product._id);
+    setEditingId(product.id);
     setFormData({
       nombre: product.nombre,
       categoria: product.categoria,
@@ -249,7 +249,7 @@ export default function ProductsPage() {
 
     setToggling(true);
     try {
-      await authService.api.patch(`/products/${toggleTarget._id}/disponible`, {
+      await authService.api.patch(`/products/${toggleTarget.id}/disponible`, {
         disponible: !toggleTarget.disponible
       });
 
@@ -393,13 +393,13 @@ export default function ProductsPage() {
               </thead>
               <tbody>
                 {filteredProducts.map((p) => (
-                  <tr key={p._id} className={`prod-row ${p.disponible ? '' : 'inactive'}`}>
+                  <tr key={p.id} className={`prod-row ${p.disponible ? '' : 'inactive'}`}>
                     <td>
                       <div className="prod-info">
                         <div className="prod-emoji-box" style={{ filter: p.disponible ? 'none' : 'grayscale(1)' }}>{p.emoji}</div>
                         <div>
                           <div className="prod-name">{p.nombre}</div>
-                          <div className="prod-id">#{String(p.idproducto || '').slice(-6) || p._id.slice(-6)}</div>
+                          <div className="prod-id">#{String(p.idproducto || '').slice(-6) || p.id.slice(-6)}</div>
                         </div>
                       </div>
                     </td>

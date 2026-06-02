@@ -16,7 +16,7 @@ export const withId = (record) => {
   if (!record) return record;
   return {
     ...record,
-    _id: record.id
+    id: record.id
   };
 };
 

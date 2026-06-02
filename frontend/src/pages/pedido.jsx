@@ -61,7 +61,7 @@ const categoryEmoji = {
 
 const getDefaultResponsable = () => {
   try {
-    const user = JSON.parse(localStorage.getItem('usuario') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('usuario') || '{}');
     return user?.nombre || user?.username || 'Sin asignar';
   } catch {
     return 'Sin asignar';
@@ -70,8 +70,8 @@ const getDefaultResponsable = () => {
 
 const getDefaultMeseroId = () => {
   try {
-    const user = JSON.parse(localStorage.getItem('usuario') || '{}');
-    return user?._id || null;
+    const user = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+    return user?.id || null;
   } catch {
     return null;
   }
@@ -129,7 +129,7 @@ export default function PedidosPage() {
 
   const productById = useMemo(() => {
     const map = new Map();
-    products.forEach((p) => map.set(String(p._id), p));
+    products.forEach((p) => map.set(String(p.id), p));
     return map;
   }, [products]);
 
@@ -150,7 +150,7 @@ export default function PedidosPage() {
     return orders.map((o) => {
       const items = Array.isArray(o.productos)
         ? o.productos.map((item) => {
-            const productId = item?.productoId?._id || item?.productoId || null;
+            const productId = item?.productoId?.id || item?.productoId || null;
             const realProduct = productById.get(String(productId || ''));
             const category = (realProduct?.categoria || '').toLowerCase();
             const name = item?.nombre || realProduct?.nombre || 'Producto';
@@ -172,8 +172,8 @@ export default function PedidosPage() {
       const sumWithVat = items.reduce((sum, i) => sum + i.price * i.qty, 0);
       const totals = buildTotals(sumWithVat, taxSettings);
       return {
-        _id: o._id,
-        id: `#${String(o._id || '').slice(-4).toUpperCase()}`,
+        _id: o.id,
+        id: `#${String(o.id || '').slice(-4).toUpperCase()}`,
         mesaNumero: Number(o.mesa),
         table: `Mesa ${o.mesa}`,
         resp: o?.mesero?.nombre || o?.mesero?.username || o?.responsable || 'Sin asignar',
@@ -189,7 +189,7 @@ export default function PedidosPage() {
   }, [orders, productById, taxSettings]);
 
   const selectedOrder = useMemo(
-    () => normalizedOrders.find((o) => o._id === selectedOrderId) || null,
+    () => normalizedOrders.find((o) => o.id === selectedOrderId) || null,
     [normalizedOrders, selectedOrderId]
   );
 
@@ -340,7 +340,7 @@ export default function PedidosPage() {
 
   const addCart = (product) => {
     setCart((prev) => {
-      const idx = prev.findIndex((i) => i.productId === String(product._id));
+      const idx = prev.findIndex((i) => i.productId === String(product.id));
       if (idx >= 0) {
         const updated = [...prev];
         updated[idx] = { ...updated[idx], qty: updated[idx].qty + 1 };
@@ -350,7 +350,7 @@ export default function PedidosPage() {
       return [
         ...prev,
         {
-          productId: String(product._id),
+          productId: String(product.id),
           name: product.nombre,
           price: Number(product.precio || 0),
           qty: 1,
@@ -392,7 +392,7 @@ export default function PedidosPage() {
   const updateMesaState = async (mesaNumero, estado) => {
     const mesa = getMesaByNumero(mesaNumero);
     if (!mesa) return;
-    await authService.actualizarMesa(mesa._id, { estado });
+    await authService.actualizarMesa(mesa.id, { estado });
   };
 
   const saveOrder = async () => {
@@ -410,7 +410,7 @@ export default function PedidosPage() {
       const payload = {
         mesa: Number(mesaFormValue),
         responsable: (responsableFormValue || '').trim() || getDefaultResponsable(),
-        estado: editingOrderId ? normalizedOrders.find((o) => o._id === editingOrderId)?.status || 'pendiente' : 'pendiente',
+        estado: editingOrderId ? normalizedOrders.find((o) => o.id === editingOrderId)?.status || 'pendiente' : 'pendiente',
         productos: cart.map((i) => ({
           productoId: i.productId,
           nombre: i.name,
@@ -481,7 +481,7 @@ export default function PedidosPage() {
       }
       await loadAll();
       setSelectedOrderId(order._id);
-      pushNotice(`Pedido ${order.id} actualizado a ${STATUS_LABEL[nextStatus]}.`, 'success');
+      pushNotice(`Pedido ${order._id} actualizado a ${STATUS_LABEL[nextStatus]}.`, 'success');
     } catch (error) {
       console.error('Error avanzando estado:', error);
       pushNotice('No se pudo actualizar el estado del pedido.', 'error');
@@ -593,9 +593,9 @@ export default function PedidosPage() {
                     const itemNames = `${order.items.slice(0, 2).map((i) => i.name).join(', ')}${order.items.length > 2 ? ` +${order.items.length - 2} más` : ''}`;
                     return (
                       <div
-                        key={order._id}
-                        className={`order-card ${selectedOrderId === order._id ? 'sel' : ''}`}
-                        onClick={() => setSelectedOrderId(order._id)}
+                        key={order.id}
+                        className={`order-card ${selectedOrderId === order.id ? 'sel' : ''}`}
+                        onClick={() => setSelectedOrderId(order.id)}
                       >
                         <div className={`card-stripe stripe-${order.status}`}></div>
                         <div className="card-inner">
@@ -720,7 +720,7 @@ export default function PedidosPage() {
                   const cat = (product.categoria || '').toLowerCase();
                   const emoji = categoryEmoji[cat] || categoryEmoji.otro;
                   return (
-                    <div key={product._id} className="prod-tile" onClick={() => addCart(product)}>
+                    <div key={product.id} className="prod-tile" onClick={() => addCart(product)}>
                       <div className="prod-tile-top"><span className="prod-tile-emoji">{emoji}</span><span className="prod-tile-plus">+</span></div>
                       <div className="prod-tile-name">{product.nombre}</div>
                       <div className="prod-tile-footer"><span className="prod-tile-price">{toCurrency(product.precio)}</span><span className="prod-tile-cat">{product.categoria}</span></div>
@@ -739,7 +739,7 @@ export default function PedidosPage() {
                   <select className="cart-select-inline" value={mesaFormValue} onChange={(e) => setMesaFormValue(e.target.value)}>
                     <option value="">Seleccionar</option>
                     {mesas.map((m) => (
-                      <option key={m._id} value={String(m.numero)}>{`Mesa ${m.numero}`}</option>
+                      <option key={m.id} value={String(m.numero)}>{`Mesa ${m.numero}`}</option>
                     ))}
                   </select>
                 </div>

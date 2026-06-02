@@ -83,8 +83,8 @@ export default function VentasPage() {
       const cliente = normalizeCliente(sale.cliente);
       const meseroNombre = sale.mesero?.nombre || sale.mesero?.username || '';
       return {
-        _id: sale._id,
-        numero: sale.numero || `#${String(sale._id || '').slice(-4).toUpperCase()}`,
+        id: sale.id,
+        numero: sale.numero || `#${String(sale.id || '').slice(-4).toUpperCase()}`,
         fecha: sale.fecha,
         mesa: sale.mesa,
         cliente: cliente.nombre,
@@ -348,7 +348,7 @@ export default function VentasPage() {
             </div>
           ) : (
             sortedSales.map((sale) => (
-              <div key={sale._id} className="table-row">
+              <div key={sale.id} className="table-row">
                 <div className="cell-id">
                   <svg viewBox="0 0 20 20" fill="#6366f1" style={{ width: 16, height: 16 }}>
                     <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />

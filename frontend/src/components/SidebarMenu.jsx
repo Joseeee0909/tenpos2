@@ -30,7 +30,7 @@ export default function SidebarMenu() {
     ventas: ['ver_ventas', 'gestionar_ventas'],
     mesas: ['ver_mesas', 'gestionar_mesas'],
     roles: ['gestionar_roles'],
-    usuarios: ['gestionar_usuarios']
+    usuarios: ['gestionar_usuarios'],
   };
 
   useEffect(() => {
@@ -58,6 +58,7 @@ export default function SidebarMenu() {
       { id: 'mesas', icon: '🪑', text: 'Mesas', route: '/mesas' },
       { id: 'roles', icon: '🔑', text: 'Roles', route: '/roles' },
       { id: 'usuarios', icon: '👥', text: 'Usuarios', route: '/usuarios' },
+      { id: 'utilidades', icon: '🔧', text: 'Utilidades', route: '/utilidades' },
       { id: 'config', icon: '⚙️', text: 'Configuración', route: '/configuracion' }
     ];
 
@@ -79,6 +80,7 @@ export default function SidebarMenu() {
 
     return ordered;
   }, [appSettings.menuOrder, isAdmin, userPerms.join('|')]);
+  
 
   const handleLogout = () => {
     setConfirmLogout(true);

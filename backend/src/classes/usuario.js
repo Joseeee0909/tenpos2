@@ -42,15 +42,20 @@ class Usuario {
     });
   }
 
-  static async obtenerPorUsuario(username, empresaId) {
+  static async obtenerPorUsuario(username, empresaSlug) {
     return prisma.usuario.findFirst({
-      where: {
-        username,
-        empresaId
-      },
-      include: { rol: true }
-    });
-  }
+    where: {
+      OR: [
+        { username },
+        { email: username }
+      ],
+      empresa: {
+        slug: empresaSlug
+      }
+    },
+    include: { rol: true }
+  });
+}
 
   static async obtenerTodos(empresaId) {
     return prisma.usuario.findMany({
