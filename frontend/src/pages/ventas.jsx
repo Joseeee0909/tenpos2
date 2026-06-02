@@ -185,14 +185,28 @@ export default function VentasPage() {
   const openDetail = (sale) => setSelected(sale);
   const closeDetail = () => setSelected(null);
 
-  const openFacturaPdf = (numero) => {
-    if (!numero) {
-      pushNotice('No hay numero de factura disponible.', 'warning');
-      return;
-    }
-    const baseUrl = import.meta.env.VITE_API_URL || '';
-    window.open(`${baseUrl}/facturas/${numero}/pdf`, '_blank', 'noopener');
-  };
+  const openFacturaPdf = async (numero) => {
+  if (!numero) {
+    pushNotice('No hay numero de factura disponible.', 'warning');
+    return;
+  }
+
+  try {
+    const response = await authService.get(
+      `/facturas/${numero}/pdf`,
+      { responseType: 'blob' }
+    );
+
+    const url = window.URL.createObjectURL(
+      new Blob([response.data], { type: 'application/pdf' })
+    );
+
+    window.open(url, '_blank', 'noopener');
+  } catch (error) {
+    console.error(error);
+    pushNotice('No se pudo abrir la factura.', 'error');
+  }
+};
 
   return (
     <div className="sales-page">

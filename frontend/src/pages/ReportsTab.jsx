@@ -3,7 +3,6 @@ import ReportCard from '../components/ReportCard';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import ReportModal from '../components/ReportModal';
-import { reportTypes } from '../data/mockData';
 import '../styles/ReportCard.css';
 import '../styles/Misc.css';
 

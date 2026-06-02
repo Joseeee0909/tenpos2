@@ -7,15 +7,14 @@ import '../styles/checkout.css';
 
 const ACTIVE_STATES = new Set(['pendiente', 'preparando', 'listo', 'entregado']);
 
-const toCurrency = (value) => `$${Math.round(Number(value || 0)).toLocaleString('es-CO')}`;
+const toCurrency = (value) =>
+  `$${Math.round(Number(value || 0)).toLocaleString('es-CO')}`;
 
 const buildTotals = (sum, taxSettings) => {
   const base = Math.round(Number(sum || 0));
   const vatRate = taxSettings.applyVat ? taxSettings.vatPercent / 100 : 0;
 
-  if (!vatRate) {
-    return { subtotal: base, tax: 0, total: base };
-  }
+  if (!vatRate) return { subtotal: base, tax: 0, total: base };
 
   if (taxSettings.pricesIncludeVat) {
     const subtotal = Math.round(base / (1 + vatRate));
@@ -51,12 +50,12 @@ const getCurrentUserId = () => {
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const mesaParam = params.get('mesa');
-  const mesaNumero = Number(mesaParam || 0);
+  const mesaNumero = Number(params.get('mesa') || 0);
 
   const [notice, setNotice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pedido, setPedido] = useState(null);
+
   const [taxSettings, setTaxSettings] = useState(readTaxSettings());
   const [appSettings, setAppSettings] = useState(getStoredSettings());
 
@@ -65,6 +64,7 @@ export default function CheckoutPage() {
   const [includeTip, setIncludeTip] = useState(false);
   const [tipPercent, setTipPercent] = useState(10);
   const [discountValue, setDiscountValue] = useState('');
+
   const [modals, setModals] = useState({
     split: false,
     edit: false,
@@ -73,57 +73,49 @@ export default function CheckoutPage() {
     complete: false,
     success: false
   });
-  const [lastFactura, setLastFactura] = useState(null);
 
-  const pushNotice = (message, type = 'info') => {
+  const pushNotice = (message, type = 'info') =>
     setNotice({ message, type, id: Date.now() });
-  };
 
   useEffect(() => {
     if (!notice) return;
-    const timer = setTimeout(() => setNotice(null), 3200);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setNotice(null), 3000);
+    return () => clearTimeout(t);
   }, [notice]);
 
   useEffect(() => {
     const handleSettings = () => {
-      setTaxSettings(readTaxSettings());
       const stored = getStoredSettings();
       setAppSettings(stored);
+      setTaxSettings(readTaxSettings());
       setTipPercent(Number(stored.tipPercent ?? 10));
       setIncludeTip(Boolean(stored.tipSuggested));
     };
-    const handleStorage = (event) => {
-      if (event.key === 'app_settings') handleSettings();
-    };
+
     handleSettings();
     window.addEventListener('app-settings-updated', handleSettings);
-    window.addEventListener('storage', handleStorage);
-    return () => {
+    return () =>
       window.removeEventListener('app-settings-updated', handleSettings);
-      window.removeEventListener('storage', handleStorage);
-    };
   }, []);
 
   const loadPedido = async () => {
-    if (!mesaNumero) {
-      pushNotice('Mesa no valida para cobrar.', 'warning');
-      setLoading(false);
-      return;
-    }
-
     try {
       const data = await authService.getPedidos();
       const pedidos = Array.isArray(data) ? data : [];
+
       const candidates = pedidos
         .filter((p) => Number(p.mesa) === mesaNumero)
-        .filter((p) => ACTIVE_STATES.has(String(p.estado || '').toLowerCase()))
-        .sort((a, b) => new Date(b.fecha || 0).getTime() - new Date(a.fecha || 0).getTime());
+        .filter((p) =>
+          ACTIVE_STATES.has(String(p.estado || '').toLowerCase())
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.fecha || 0) - new Date(a.fecha || 0)
+        );
 
       setPedido(candidates[0] || null);
-    } catch (error) {
-      console.error('Error cargando pedido:', error);
-      pushNotice('No se pudo cargar el pedido para esta mesa.', 'error');
+    } catch (e) {
+      pushNotice('Error cargando pedido', 'error');
     } finally {
       setLoading(false);
     }
@@ -135,159 +127,123 @@ export default function CheckoutPage() {
 
   const items = useMemo(() => {
     if (!pedido?.productos) return [];
-    return pedido.productos.map((item) => ({
-      nombre: item?.nombre || 'Producto',
-      cantidad: Number(item?.cantidad || 1),
-      precio: Number(item?.precio || 0),
-      obs: item?.obs || ''
+    return pedido.productos.map((i) => ({
+      nombre: i.nombre,
+      cantidad: Number(i.cantidad || 1),
+      precio: Number(i.precio || 0),
+      obs: i.obs || ''
     }));
   }, [pedido]);
 
   const paymentOptions = useMemo(() => {
-    const options = [
+    const opts = [
       { key: 'cash', label: 'Efectivo', enabled: appSettings.payCash !== false },
       { key: 'card', label: 'Tarjeta', enabled: appSettings.payCard !== false },
       { key: 'transfer', label: 'Transferencia', enabled: appSettings.payTransfer !== false },
       { key: 'qr', label: 'QR', enabled: appSettings.payQr !== false }
-    ].filter((opt) => opt.enabled);
+    ].filter((o) => o.enabled);
 
-    if (!options.length) {
-      return [{ key: 'cash', label: 'Efectivo', enabled: true }];
-    }
-
-    return options;
+    return opts.length ? opts : [{ key: 'cash', label: 'Efectivo' }];
   }, [appSettings]);
 
-  useEffect(() => {
-    if (!paymentOptions.find((opt) => opt.key === paymentMethod)) {
-      setPaymentMethod(paymentOptions[0]?.key || 'cash');
-    }
-  }, [paymentOptions, paymentMethod]);
+  const baseSum = useMemo(
+    () => items.reduce((s, i) => s + i.precio * i.cantidad, 0),
+    [items]
+  );
 
-  const baseSum = useMemo(() => items.reduce((sum, i) => sum + i.precio * i.cantidad, 0), [items]);
-  const totals = useMemo(() => buildTotals(baseSum, taxSettings), [baseSum, taxSettings]);
-  const tipRaw = totals.subtotal * (tipPercent / 100);
-  const tipAmount = includeTip ? Math.round(tipRaw / 100) * 100 : 0;
+  const openModal = (key) => {
+  setModals((prev) => ({
+    ...prev,
+    [key]: true
+  }));
+};
+
+const closeModal = (key) => {
+  setModals((prev) => ({
+    ...prev,
+    [key]: false
+  }));
+};
+  const totals = useMemo(
+    () => buildTotals(baseSum, taxSettings),
+    [baseSum, taxSettings]
+  );
+
+  const tipAmount = includeTip
+    ? Math.round((totals.subtotal * tipPercent) / 100)
+    : 0;
 
   const discountAmount = useMemo(() => {
     const raw = String(discountValue || '').trim();
     if (!raw) return 0;
     if (raw.endsWith('%')) {
-      const pct = Number(raw.replace('%', ''));
-      if (!Number.isFinite(pct)) return 0;
-      return Math.round((totals.total * pct) / 100);
+      return Math.round((totals.total * Number(raw.replace('%', ''))) / 100);
     }
-    const val = Number(raw);
-    return Number.isFinite(val) ? Math.round(val) : 0;
+    return Math.round(Number(raw) || 0);
   }, [discountValue, totals.total]);
 
   const grandTotal = totals.total + tipAmount - discountAmount;
-  const change = paymentMethod === 'cash' && amountReceived
+  const change =
+  paymentMethod === 'cash' && amountReceived
     ? Math.max(0, Math.round(Number(amountReceived) - grandTotal))
     : 0;
 
-  const openModal = (key) => setModals((prev) => ({ ...prev, [key]: true }));
-  const closeModal = (key) => setModals((prev) => ({ ...prev, [key]: false }));
-
-  const handleEditPedido = () => {
-    if (!mesaNumero) return;
-    navigate(`/pedidos?mode=edit&mesa=${mesaNumero}`);
-  };
-
-  const handleDeletePedido = async () => {
-    if (!pedido?.id) return;
+  const openPreviewPdf = async () => {
     try {
-      await authService.eliminarPedido(pedido.id);
-      const mesas = await authService.getMesas();
-      const mesa = (Array.isArray(mesas) ? mesas : []).find((m) => Number(m.numero) === mesaNumero);
-      if (mesa) {
-        await authService.actualizarMesa(mesa.id, { estado: 'disponible', pedido: null });
-      }
-      pushNotice('Pedido eliminado y mesa liberada.', 'success');
-      closeModal('delete');
-      navigate('/mesas');
-    } catch (error) {
-      console.error('Error eliminando pedido:', error);
-      pushNotice('No se pudo eliminar el pedido.', 'error');
-    }
-  };
+      const res = await authService.api.get('/facturas/preview', {
+        params: {
+          pedidoId: pedido.id,
+          incluirPropina: includeTip,
+          propinaPercent: tipPercent,
+          vatPercent: taxSettings.vatPercent,
+          applyVat: taxSettings.applyVat,
+          pricesIncludeVat: taxSettings.pricesIncludeVat
+        },
+        responseType: 'blob'
+      });
 
-  const openFacturaPdf = (numero) => {
-    if (!numero) {
-      pushNotice('No hay factura generada aun.', 'warning');
-      return;
-    }
-    const baseUrl = import.meta.env.VITE_API_URL || '';
-    window.open(`${baseUrl}/facturas/${numero}/pdf`, '_blank', 'noopener');
-  };
+      const url = window.URL.createObjectURL(
+        new Blob([res.data], { type: 'application/pdf' })
+      );
 
-  const openPreviewPdf = () => {
-    if (!pedido?.id) {
-      pushNotice('No hay pedido para imprimir.', 'warning');
-      return;
+      window.open(url, '_blank');
+    } catch (e) {
+      pushNotice('No se pudo generar PDF', 'error');
     }
-    const baseUrl = import.meta.env.VITE_API_URL || '';
-    const params = new URLSearchParams({
-      pedidoId: pedido.id,
-      incluirPropina: includeTip ? 'true' : 'false',
-      propinaPercent: String(tipPercent ?? 0),
-      vatPercent: String(taxSettings.vatPercent ?? 19),
-      applyVat: taxSettings.applyVat ? 'true' : 'false',
-      pricesIncludeVat: taxSettings.pricesIncludeVat ? 'true' : 'false'
-    });
-    window.open(`${baseUrl}/facturas/preview?${params.toString()}`, '_blank', 'noopener');
   };
 
   const handleCompleteSale = async () => {
-    if (!pedido?.id) return;
-
     try {
-      const payload = {
+      const result = await authService.checkoutPedido({
         pedidoId: pedido.id,
-        cliente: { nombre: 'Consumidor Final', documento: '000000' },
-        metodoPago: paymentMethod === 'cash' ? 'Efectivo' : paymentMethod === 'card' ? 'Tarjeta' : paymentMethod === 'transfer' ? 'Transferencia' : 'QR',
+        metodoPago: paymentMethod,
         incluirPropina: includeTip,
         propinaPercent: tipPercent,
-        taxSettings
-      };
+        taxSettings,
+        mesero: getCurrentUserId()
+      });
 
-      const meseroId = getCurrentUserId();
-      if (meseroId) payload.mesero = meseroId;
+      setModals((p) => ({ ...p, success: true }));
 
-      const result = await authService.checkoutPedido(payload);
-      setLastFactura(result?.factura || null);
-      closeModal('complete');
-      openModal('success');
       if (result?.factura?.numero) {
-        openFacturaPdf(result.factura.numero);
-      } else if (result?.pdfUrl) {
-        const baseUrl = import.meta.env.VITE_API_URL || '';
-        const origin = baseUrl.replace(/\/api\/?$/, '');
-        window.open(`${origin}${result.pdfUrl}`, '_blank', 'noopener');
+        const res = await authService.api.get(
+          `/facturas/${result.factura.numero}/pdf`,
+          { responseType: 'blob' }
+        );
+
+        const url = window.URL.createObjectURL(
+          new Blob([res.data], { type: 'application/pdf' })
+        );
+
+        window.open(url, '_blank');
       }
-    } catch (error) {
-      console.error('Error completando venta:', error);
-      pushNotice(error?.response?.data?.error || 'No se pudo completar la venta.', 'error');
+    } catch (e) {
+      pushNotice('Error completando venta', 'error');
     }
   };
 
-  if (loading) {
-    return (
-      <div className="checkout-page">
-        <UxToast notice={notice} onClose={() => setNotice(null)} />
-        <div className="empty-state">Cargando pedido...</div>
-      </div>
-    );
-  }
-
-  if (!pedido) {
-    return (
-      <div className="checkout-page">
-        <UxToast notice={notice} onClose={() => setNotice(null)} />
-        <div className="empty-state">No hay pedido activo para esta mesa.</div>
-      </div>
-    );
-  }
+  if (loading) return <div>Cargando...</div>;
+  if (!pedido) return <div>No hay pedido</div>;
 
   return (
     <div className="checkout-page">
