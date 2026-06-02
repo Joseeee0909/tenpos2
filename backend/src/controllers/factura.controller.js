@@ -305,7 +305,10 @@ export const checkoutPedido = async (req, res) => {
       include: facturaInclude
     });
 
-    res.json({ factura: mapFactura(updated), pdfUrl: `/api/facturas/${numero}/pdf` });
+    // Also return base64 for immediate frontend display (avoids extra GET/token issues)
+    const pdfBase64 = Buffer.isBuffer(pdfBuffer) ? pdfBuffer.toString('base64') : null;
+
+    res.json({ factura: mapFactura(updated), pdfUrl: `/api/facturas/${numero}/pdf`, pdfBase64 });
   } catch (error) {
     if (error.status === 409) {
       return res.status(409).json({ error: error.message, items: error.items });
