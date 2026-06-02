@@ -9,7 +9,8 @@ import {
   readStoredToken,
   readStoredUser,
   writeStoredToken,
-  writeStoredUser
+  writeStoredUser,
+  
 } from '../utils/authSession';
 
 export const AuthContext = createContext();
@@ -83,7 +84,13 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+    await authService.logout();
+  } catch (error) {
+    console.error("Error registrando logout:", error);
+  }
+
     setToken(null);
     setUser(null);
     clearStoredAuth();

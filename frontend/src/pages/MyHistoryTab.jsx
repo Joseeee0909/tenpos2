@@ -1,19 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useContext } from "react";
 import Toolbar, { SearchBox, ActionButtons } from "../components/Toolbar";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import LogsTable from "../components/LogsTable";
-import { logs as allLogs } from "../data/mockData";
+import authService from "../services/api";
+import { AuthContext } from "../context/AuthContext";
 import "../styles/Misc.css";
-
-const CURRENT_USER = "Carlos M.";
-
-const SUMMARY_ROWS = [
-  { label: "Usuario actual", value: "Carlos Mendoza (Admin)" },
-  { label: "Operaciones realizadas hoy", value: "127" },
-  { label: "Última operación", value: "Hace 3 minutos" },
-  { label: "Sesiones activas", value: "1 (Navegador - Dispositivo actual)" },
-];
 
 const downloadIcon = (
   <svg
@@ -30,73 +22,169 @@ const downloadIcon = (
 
 export default function MyHistoryTab() {
   const [search, setSearch] = useState("");
-  const [view, setView] = useState("list");
+  const [view] = useState("list");
+  const [logs, setLogs] = useState([]);
+
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const res = await authService.getMyHistory();
+
+        console.log("Historial completo:", res);
+
+        // 🔥 AQUÍ ESTÁ EL FIX
+        const data = res?.data || [];
+
+        const myLogs = data.filter(
+          (log) =>
+            log.usuarioId === user?.id ||
+            log.usuarioUsername === user?.username
+        );
+
+        console.log("Historial filtrado:", myLogs);
+
+        setLogs(myLogs);
+      } catch (error) {
+        console.error("Error cargando historial:", error);
+      }
+    };
+
+    if (user) fetchLogs();
+  }, [user]);
+
+  
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return allLogs.filter(
-      (l) =>
-        l.user === CURRENT_USER &&
-        (!q ||
-          l.action.toLowerCase().includes(q) ||
-          l.module.toLowerCase().includes(q)),
-    );
-  }, [search]);
+
+    return logs.filter((log) => {
+      if (!q) return true;
+
+      return (
+        log.accion?.toLowerCase().includes(q) ||
+        log.modulo?.toLowerCase().includes(q) ||
+        log.detalle?.toLowerCase().includes(q)
+      );
+    });
+  }, [logs, search]);
+
+
+
+
   const stats = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const hoy = new Date().toISOString().split("T")[0];
+
+    const operacionesHoy = logs.filter(
+      (log) => log.createdAt?.split("T")[0] === hoy
+    ).length;
+
+    const ultimaOperacion =
+      logs.length > 0
+        ? new Date(logs[0].createdAt).toLocaleString()
+        : "Sin registros";
+
+    const sesionesActivas =
+      logs.filter(
+        (log) =>
+          log.tipo === "sesion" &&
+          log.accion === "login"
+      ).length -
+      logs.filter(
+        (log) =>
+          log.tipo === "sesion" &&
+          log.accion === "logout"
+      ).length;
+
     return {
-      total: 1,
-      changes: 2,
-      users: 5,
-      errors: 4,
+      operacionesHoy,
+      ultimaOperacion,
+      sesionesActivas: Math.max(0, sesionesActivas),
     };
-  }, []);
+  }, [logs]);
+
+  const summaryRows = [
+    {
+      label: "Usuario actual",
+      value: `${user?.username || "-"} (${user?.rol || "-"})`,
+    },
+    {
+      label: "Operaciones realizadas hoy",
+      value: stats.operacionesHoy,
+    },
+    {
+      label: "Última operación",
+      value: stats.ultimaOperacion,
+    },
+    {
+      label: "Sesiones activas",
+      value: stats.sesionesActivas,
+    },
+  ];
+
+  const tableLogs = filtered.map((log) => ({
+    id: log.id,
+    date: new Date(log.createdAt).toLocaleString(),
+    user: log.usuarioUsername || "-",
+    module: log.modulo || "-",
+    action: log.accion || "-",
+    detail: log.detalle || "-",
+    status: log.exito ? "Éxito" : "Error",
+    level: log.nivel || "-",
+  }));
 
   return (
     <div>
       <PageHeader
-        label="Gestion de pedidos"
-        title={
-          view === "list"
-            ? "Gestion de pedidos"
-            : editingOrderId
-              ? "Editar pedido"
-              : "Nuevo pedido"
-        }
-        subtitle={
-          view === "list" ? `${stats.total} pedidos registrados hoy` : ""
-        }
+        label="Utilidades"
+        title="Mi historial"
+        subtitle={`${logs.length} registros encontrados`}
         iconColor="#3b3b7d"
         icon={
-          <svg viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="1.6">
+          <svg
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="white"
+            strokeWidth="1.6"
+          >
             <rect x="4" y="3" width="12" height="14" rx="2" />
             <path d="M7 7h6M7 10h4" />
           </svg>
         }
         actions={
-          view === "list" ? (
-            <>
-              <button
-                className="btn-outline"
-                onClick={() => navigate("/utilidades")}
-              >
-                Actividad
-              </button>
-              <button className="btn-outline" onClick={() => navigate("/utilidades/reportes")}type="button">
-                Reportes
-              </button>
-              <button className="btn-outline" onClick={() => navigate("/utilidades/sesiones")}type="button">
-                Sesiones
-              </button>
-              <div className="ph-divider"></div>
-            </>
-          ) : null
+          <>
+            <button
+              className="btn-outline"
+              onClick={() => navigate("/utilidades")}
+            >
+              Actividad
+            </button>
+
+            <button
+              className="btn-outline"
+              onClick={() => navigate("/utilidades/reportes")}
+              type="button"
+            >
+              Reportes
+            </button>
+
+            <button
+              className="btn-outline"
+              onClick={() => navigate("/utilidades/sesiones")}
+              type="button"
+            >
+              Sesiones
+            </button>
+
+            <div className="ph-divider"></div>
+          </>
         }
       />
 
       <div className="user-summary">
-        {SUMMARY_ROWS.map(({ label, value }) => (
+        {summaryRows.map(({ label, value }) => (
           <div key={label} className="summary-row">
             <span className="summary-label">{label}</span>
             <span className="summary-val">{value}</span>
@@ -110,19 +198,21 @@ export default function MyHistoryTab() {
           value={search}
           onChange={setSearch}
         />
+
         <ActionButtons
           buttons={[
             {
               label: "Descargar mi historial",
               icon: downloadIcon,
-              onClick: () => alert("Descargando historial personal..."),
+              onClick: () =>
+                alert("Exportación de historial pendiente"),
               primary: true,
             },
           ]}
         />
       </Toolbar>
 
-      <LogsTable logs={filtered} columns="myhistory" />
+      <LogsTable logs={tableLogs} columns="myhistory" />
     </div>
   );
 }

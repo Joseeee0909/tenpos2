@@ -117,6 +117,12 @@ const saveUser = (usuario) => {
     console.warn("Error guardando usuario", e);
   }
 };
+const logout = async () => {  try {
+    await api.post("/logout");
+  } catch (error) {
+    console.error("Error registrando logout:", error);
+  }
+};
 
 /* ---------------------------------------------------
    🔹 ESTADÍSTICAS
@@ -221,7 +227,7 @@ const eliminarPedido = async (id) => {
 };
 
 // evento frontend
-export const sendAuditEvent = async (data) => {
+ const sendAuditEvent = async (data) => {
   const res = await api.post('/auditoria/eventos', data);
   return res.data;
 };
@@ -291,6 +297,7 @@ const checkoutPedido = async (data) => {
 export default {
   api,
   login,
+  logout,
   register,
   saveUser,
   getUsers,

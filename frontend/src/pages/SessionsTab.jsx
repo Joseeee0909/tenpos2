@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect} from 'react';
 import StatCard from '../components/StatCard';
 import Toolbar, { FilterChips, ActionButtons } from '../components/Toolbar';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import authService from '../services/api';
 import SessionCard from '../components/SessionCard';
-import { sessions as allSessions } from '../data/mockData';
 
 const STATUS_CHIPS = [
   { key: 'all',    label: 'Todas',    color: '#5eead4' },
@@ -12,24 +12,6 @@ const STATUS_CHIPS = [
   { key: 'closed', label: 'Cerradas', color: '#64748b' },
 ];
 
-const STATS = [
-  {
-    value: 5, label: 'Sesiones activas', iconBg: '#f0f9fb',
-    icon: <svg viewBox="0 0 16 16" fill="none" stroke="#0891b2" strokeWidth="1.6"><path d="M2 6a2 2 0 012-2h8a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" /><path d="M6 9h4" /></svg>,
-  },
-  {
-    value: 23, label: 'Inicios de sesión hoy', iconBg: '#f3f4f6',
-    icon: <svg viewBox="0 0 16 16" fill="none" stroke="#64748b" strokeWidth="1.6"><path d="M2 8h12" /><circle cx="8" cy="8" r="1.5" fill="currentColor" /></svg>,
-  },
-  {
-    value: 1, label: 'Intentos fallidos', iconBg: '#fef3c7',
-    icon: <svg viewBox="0 0 16 16" fill="none" stroke="#d97706" strokeWidth="1.6"><circle cx="8" cy="8" r="5.5" /><path d="M8 5v3.5M8 10.5v.5" /></svg>,
-  },
-  {
-    value: '2.5h', label: 'Duración promedio', iconBg: '#ecfdf5',
-    icon: <svg viewBox="0 0 16 16" fill="none" stroke="#059669" strokeWidth="1.6"><path d="M2 8h12M8 2v12M2 8l2-2M2 8l2 2" /></svg>,
-  },
-];
 
 const downloadIcon = (
   <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -40,34 +22,87 @@ const downloadIcon = (
 export default function SessionsTab() {
   const [statusFilter, setStatus] = useState('all');
   const [view, setView] = useState('list');
+  const [sessions, setSessions] = useState([]);
+
+
   const navigate = useNavigate();
-  const filtered = useMemo(
-    () => statusFilter === 'all' ? allSessions : allSessions.filter((s) => s.status === statusFilter),
-    [statusFilter]
-  );
+
+  useEffect(() => {
+    const fetchSessions = async () => {
+  try {
+    const logs = await authService.getSessions();
+
+    const sessionsData = logs.map((log) => ({
+      user: log.usuarioUsername,
+      role: log.usuarioNombre,
+      device: log.userAgent?.includes("Windows")
+        ? "Windows"
+        : "Desconocido",
+      ip: log.ip,
+      login: new Date(log.createdAt).toLocaleString(),
+      logout: log.accion === "logout"
+        ? new Date(log.createdAt).toLocaleString()
+        : null,
+      duration: "-",
+      status: log.accion === "logout"
+        ? "closed"
+        : "active",
+      avatar: log.usuarioUsername?.charAt(0)?.toUpperCase(),
+    }));
+
+    setSessions(sessionsData);
+  } catch (err) {
+    console.error("Error cargando sesiones:", err);
+  }
+};
+
+    fetchSessions();
+  }, []);
+
+
+  const filtered = useMemo(() => {
+  return statusFilter === "all"
+    ? sessions
+    : sessions.filter((s) => s.status === statusFilter);
+}, [statusFilter, sessions]);
   
+
+
  const stats = useMemo(() => {
-      const today = new Date().toISOString().slice(0, 10);
-      return {
-        total: 1,
-        changes: 2,
-        users: 5,
-        errors: 4,
-      };
-    }, []);
+  const hoy = new Date().toISOString().split("T")[0];
+
+  const loginsHoy = sessions.filter(
+    (s) =>
+      s.accion === "login" &&
+      s.createdAt?.split("T")[0] === hoy
+  ).length;
+
+  const intentosFallidos = sessions.filter(
+    (s) =>
+      s.accion === "login" &&
+      s.exito === false
+  ).length;
+
+  return {
+    sesiones: sessions.filter((s) => s.status === "active").length,
+    logins: loginsHoy,
+    fallidos: intentosFallidos,
+    tiempoPromedio: "--"
+  };
+}, [sessions]);
 
   return (
     <div><PageHeader
                   label="Gestion de pedidos"
                   title={
                     view === "list"
-                      ? "Gestion de pedidos"
+                      ? "Sesiones activas"
                       : editingOrderId
                         ? "Editar pedido"
                         : "Nuevo pedido"
                   }
                   subtitle={
-                    view === "list" ? `${stats.total} pedidos registrados hoy` : ""
+                    view === "list" ? `${stats.sesiones} sesiones activas` : ""
                   }
                   iconColor="#3b3b7d"
                   icon={
@@ -97,7 +132,10 @@ export default function SessionsTab() {
                   }
                 />
       <div className="stats-row" style={{ marginBottom: 20 }}>
-        {STATS.map((s) => <StatCard key={s.label} {...s} />)}
+        <StatCard value={stats.sesiones} label="Sesiones activas" iconBg="#f0f9fb" icon={<svg viewBox="0 0 16 16" fill="none" stroke="#0891b2" strokeWidth="1.6"><path d="M2 6a2 2 0 012-2h8a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" /><path d="M6 9h4" /></svg>} />
+        <StatCard value={stats.logins} label="Inicios de sesión hoy" iconBg="#f3f4f6" icon={<svg viewBox="0 0 16 16" fill="none" stroke="#64748b" strokeWidth="1.6"><path d="M2 8h12" /><circle cx="8" cy="8" r="1.5" fill="currentColor" /></svg>} />
+        <StatCard value={stats.fallidos} label="Intentos fallidos" iconBg="#fef3c7" icon={<svg viewBox="0 0 16 16" fill="none" stroke="#d97706" strokeWidth="1.6"><circle cx="8" cy="8" r="5.5" /><path d="M8 5v3.5M8 10.5v.5" /></svg>} />
+        <StatCard value={stats.tiempoPromedio} label="Tiempo promedio de sesión" iconBg="#f0f9fb" icon={<svg viewBox="0 0 16 16" fill="none" stroke="#0891b2" strokeWidth="1.6"><path d="M2 8h12" /><circle cx="8" cy="8" r="1.5" fill="currentColor" /></svg>} />
       </div>
 
       <Toolbar>
