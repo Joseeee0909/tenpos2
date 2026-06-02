@@ -1,25 +1,25 @@
 import { Router } from 'express';
 import TablaController from '../controllers/tabla.controller.js';
-import { verifyToken, requireRole } from '../middlewares/auth.middleware.js';
+import { verifyToken, requirePermission } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
 // Inicializar mesas (crear 10 por defecto) - DEBE ESTAR ANTES de GET /:id
-router.post('/init/default', verifyToken, requireRole('administrador', 'admin', 'root'), TablaController.inicializarMesas);
+router.post('/init/default', verifyToken, requirePermission('gestionar_mesas'), TablaController.inicializarMesas);
 
 // Obtener todas las mesas
-router.get('/', TablaController.obtenerTablas);
+router.get('/', verifyToken, requirePermission('ver_mesas', 'gestionar_mesas'), TablaController.obtenerTablas);
 
-// Crear nueva mesa (admin only)
-router.post('/', verifyToken, requireRole('administrador', 'admin', 'root'), TablaController.crearTabla);
+// Crear nueva mesa
+router.post('/', verifyToken, requirePermission('gestionar_mesas'), TablaController.crearTabla);
 
 // Obtener una mesa
-router.get('/:id', TablaController.obtenerTabla);
+router.get('/:id', verifyToken, requirePermission('ver_mesas', 'gestionar_mesas'), TablaController.obtenerTabla);
 
 // Actualizar mesa
-router.put('/:id', verifyToken, TablaController.actualizarTabla);
+router.put('/:id', verifyToken, requirePermission('gestionar_mesas'), TablaController.actualizarTabla);
 
-// Eliminar mesa (admin only)
-router.delete('/:id', verifyToken, requireRole('administrador', 'admin', 'root'), TablaController.eliminarTabla);
+// Eliminar mesa
+router.delete('/:id', verifyToken, requirePermission('gestionar_mesas'), TablaController.eliminarTabla);
 
 export default router;

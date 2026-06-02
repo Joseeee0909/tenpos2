@@ -190,7 +190,7 @@ export default function MesasPage() {
           return;
         }
 
-        await authService.actualizarMesa(editingMesa._id, {
+        await authService.actualizarMesa(editingMesa.id, {
           numero: parseInt(formData.numero),
           capacidad: parseInt(formData.capacidad),
           estado: formData.estado
@@ -238,7 +238,7 @@ export default function MesasPage() {
     }
     
     try {
-      await authService.actualizarMesa(mesa._id, { estado: nuevoEstado });
+      await authService.actualizarMesa(mesa.id, { estado: nuevoEstado });
       await fetchData();
       setOpenMenuId(null);
       pushNotice(`Mesa ${mesa.numero} ahora esta en estado ${nuevoEstado}.`, 'success');
@@ -288,6 +288,12 @@ export default function MesasPage() {
     closeActionMesa();
   };
 
+  const goCheckout = () => {
+    if (!actionMesa?.mesa) return;
+    navigate(`/checkout?mesa=${actionMesa.mesa.numero}`);
+    closeActionMesa();
+  };
+
   const handleQuickPay = async () => {
     if (!actionMesa?.mesa) return;
 
@@ -306,11 +312,11 @@ export default function MesasPage() {
         try {
           setLoading(true);
 
-          if (activeOrder?._id) {
-            await authService.actualizarPedido(activeOrder._id, { estado: 'entregado' });
+          if (activeOrder?.id) {
+            await authService.actualizarPedido(activeOrder.id, { estado: 'entregado' });
           }
 
-          await authService.actualizarMesa(mesaTarget._id, { estado: 'disponible', pedido: null });
+          await authService.actualizarMesa(mesaTarget.id, { estado: 'disponible', pedido: null });
           await fetchData();
           closeActionMesa();
           pushNotice('Pago registrado. La mesa ya esta disponible.', 'success');
@@ -417,7 +423,7 @@ export default function MesasPage() {
             </div>
           ) : (
             filteredMesas.map(mesa => (
-              <div key={mesa._id} className={`card ${mesa.estadoUi}`} onClick={() => handleMesaAccess(mesa)}>
+              <div key={mesa.id} className={`card ${mesa.estadoUi}`} onClick={() => handleMesaAccess(mesa)}>
                 <div className="card-head">
                   <div className="card-info">
                     <div className="mesa-num">Mesa {mesa.numero}</div>
@@ -427,14 +433,14 @@ export default function MesasPage() {
                   </div>
                   <div 
                     className="menu-btn" 
-                    onClick={(e) => toggleMenu(e, mesa._id)}
+                    onClick={(e) => toggleMenu(e, mesa.id)}
                   >
                     <div className="dots">
                       <span className="dot"></span>
                       <span className="dot"></span>
                       <span className="dot"></span>
                     </div>
-                    {openMenuId === mesa._id && (
+                    {openMenuId === mesa.id && (
                       <div className="dropdown open" onClick={(e) => e.stopPropagation()}>
                         <button onClick={() => handleOpenModal(mesa)}>
                           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -450,7 +456,7 @@ export default function MesasPage() {
                           Cambiar estado
                         </button>
                         <div className="sep"></div>
-                        <button className="danger" onClick={() => handleDeleteMesa(mesa._id)}>
+                        <button className="danger" onClick={() => handleDeleteMesa(mesa.id)}>
                           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                             <path d="M2 4h12M6 4V2h4v2M5 4l1 9h4l1-9" />
                           </svg>
@@ -624,10 +630,9 @@ export default function MesasPage() {
 
               <div className="mesa-modal-divider"></div>
 
-              <button className="mesa-modal-btn btn-disabled" onClick={handleQuickPay}>
+              <button className="mesa-modal-btn btn-primary" onClick={goCheckout}>
                 <svg viewBox="0 0 16 16" fill="none" stroke="#cbd5e1" strokeWidth="1.8"><rect x="2" y="4" width="12" height="9" rx="1.5"/><path d="M5 4V3h6v1"/><path d="M5 9h2M10 9h1"/></svg>
-                Pagar
-                <span className="soon-tag">Proximamente</span>
+                Ir a pagar
               </button>
             </div>
           </div>

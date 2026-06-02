@@ -1,8 +1,16 @@
-import RolModel from "../models/rol.model.js";
+import prisma from "../lib/prisma.js";
 
 class Rol {
-  constructor(nombre, descripcion, color = '#7c3aed', permisos = [], activo = true) {
-    this.idrol = `rol_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  constructor(
+    empresaId,
+    nombre,
+    descripcion,
+    color = "#7c3aed",
+    permisos = [],
+    activo = true
+  ) {
+    this.empresaId = empresaId;
+    this.idrol = `rol_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     this.nombre = nombre;
     this.descripcion = descripcion;
     this.color = color;
@@ -11,40 +19,68 @@ class Rol {
   }
 
   async guardar() {
-    const rol = new RolModel({
-      idrol: this.idrol,
-      nombre: this.nombre,
-      descripcion: this.descripcion,
-      color: this.color,
-      permisos: this.permisos,
-      activo: this.activo
+    return await prisma.rol.create({
+      data: {
+        empresaId: this.empresaId,
+        idrol: this.idrol,
+        nombre: this.nombre,
+        descripcion: this.descripcion,
+        color: this.color,
+        permisos: this.permisos,
+        activo: this.activo
+      }
     });
-    await rol.save();
-    return rol;
   }
 
-  static async obtenerTodos() {
-    return await RolModel.find();
+  static async obtenerTodos(empresaId) {
+    return await prisma.rol.findMany({
+      where: { empresaId }
+    });
   }
 
-  static async obtenerPorNombre(nombre) {
-    return await RolModel.findOne({ nombre });
+  static async obtenerPorNombre(nombre, empresaId) {
+    return await prisma.rol.findFirst({
+      where: {
+        nombre,
+        empresaId
+      }
+    });
   }
 
-  static async eliminar(nombre) {
-    return await RolModel.findOneAndDelete({ nombre });
+  static async obtenerPorId(id, empresaId) {
+    return await prisma.rol.findFirst({
+      where: {
+        id,
+        empresaId
+      }
+    });
   }
 
-  static async actualizar(id, datos) {
-    return await RolModel.findByIdAndUpdate(id, datos, { new: true });
+  static async eliminar(id, empresaId) {
+    return await prisma.rol.delete({
+      where: { id, empresaId }
+    });
   }
 
-  static async desactivar(id) {
-    return await RolModel.findByIdAndUpdate(id, { activo: false }, { new: true });
+  static async actualizar(id, empresaId, datos) {
+    return await prisma.rol.update({
+      where: { id, empresaId },
+      data: datos
+    });
   }
 
-  static async activar(id) {
-    return await RolModel.findByIdAndUpdate(id, { activo: true }, { new: true });
+  static async desactivar(id, empresaId) {
+    return await prisma.rol.update({
+      where: { id, empresaId },
+      data: { activo: false }
+    });
+  }
+
+  static async activar(id, empresaId) {
+    return await prisma.rol.update({
+      where: { id, empresaId },
+      data: { activo: true }
+    });
   }
 }
 

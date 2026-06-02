@@ -7,10 +7,15 @@ import rolRoutes from './routes/rol.routes.js'
 import productRoutes from './routes/product.routes.js'
 import pedidoRoutes from './routes/pedido.routes.js'
 import tablaRoutes from './routes/tabla.routes.js'
+import facturaRoutes from './routes/factura.routes.js'
+import dashboardRoutes from './routes/dashboard.routes.js'
+import auditoriaRoutes from './routes/auditoria.routes.js'
+import { auditTrail } from './middlewares/audit.middleware.js'
 
 const app = express()
 
-app.use(express.json())
+app.use(express.json({ limit: '1mb' }))
+app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 
 app.use(cors({
   origin: process.env.VITE_FRONTEND_URL || 'http://localhost:5173',
@@ -20,6 +25,7 @@ app.use(cors({
 }))
 
 app.disable('x-powered-by')
+app.use(auditTrail)
 
 // rutas
 app.use('/api', authRoutes)
@@ -28,5 +34,17 @@ app.use('/api/usuarios', userRoutes)
 app.use('/api/products', productRoutes)
 app.use('/api/pedidos', pedidoRoutes)
 app.use('/api/mesas', tablaRoutes)
+app.use('/api', facturaRoutes)
+app.use('/api', dashboardRoutes)
+app.use('/api', auditoriaRoutes)
+
+app.use((req, res) => {
+  res.status(404).json({ mensaje: 'Ruta no encontrada' })
+})
+
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err)
+  res.status(500).json({ mensaje: 'Error interno del servidor' })
+})
 
 export default app

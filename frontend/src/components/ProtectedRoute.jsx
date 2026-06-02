@@ -1,13 +1,8 @@
 import { useContext } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { normalizeRole } from '../utils/authSession';
 import '../styles/access-denied.css';
-
-const normalizeRole = (role) => {
-  const raw = String(role || '').trim().toLowerCase();
-  if (raw === 'administrador') return 'admin';
-  return raw;
-};
 
 function Unauthorized({ section = 'este apartado' }) {
   return (
@@ -28,7 +23,7 @@ function Unauthorized({ section = 'este apartado' }) {
   );
 }
 
-export default function ProtectedRoute({ children, allowedRoles }) {
+export default function ProtectedRoute({ children, allowedRoles, allowedPermissions }) {
   const { user, token } = useContext(AuthContext);
   const location = useLocation();
 
@@ -37,19 +32,26 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     return <Navigate to="/login" replace />;
   }
 
-  // Si la ruta requiere roles concretos y el usuario no los tiene, mostrar 403
-  if (allowedRoles && Array.isArray(allowedRoles)) {
-    const normalizedAllowed = allowedRoles.map(normalizeRole);
-    const rol = normalizeRole(user?.rol);
-    if (!normalizedAllowed.includes(rol)) {
-      const section = location.pathname.includes('/roles')
-        ? 'Roles'
-        : location.pathname.includes('/usuarios')
-          ? 'Usuarios'
-          : 'esta seccion';
+  const rol = normalizeRole(user?.rol);
+  const isAdmin = ['admin', 'root'].includes(rol);
+  const userPerms = Array.isArray(user?.permisos) ? user.permisos : [];
 
-      return <Unauthorized section={section} />;
-    }
+  const hasRoles = allowedRoles && Array.isArray(allowedRoles)
+    ? allowedRoles.map(normalizeRole).includes(rol)
+    : false;
+
+  const hasPermissions = allowedPermissions && Array.isArray(allowedPermissions)
+    ? allowedPermissions.some((perm) => userPerms.includes(perm))
+    : true;
+
+  if ((allowedRoles || allowedPermissions) && !(isAdmin || hasRoles || hasPermissions)) {
+    const section = location.pathname.includes('/roles')
+      ? 'Roles'
+      : location.pathname.includes('/usuarios')
+        ? 'Usuarios'
+        : 'esta seccion';
+
+    return <Unauthorized section={section} />;
   }
 
   return children;

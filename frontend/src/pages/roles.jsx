@@ -8,6 +8,8 @@ const ALL_PERMS = [
   { id: 'ver_pedidos', label: 'Ver pedidos', desc: 'Consultar lista y detalle' },
   { id: 'crear_pedidos', label: 'Crear pedidos', desc: 'Registrar nuevos pedidos' },
   { id: 'editar_pedidos', label: 'Editar pedidos', desc: 'Modificar pedidos existentes' },
+  { id: 'ver_ventas', label: 'Ver ventas', desc: 'Consultar historial y detalles' },
+  { id: 'gestionar_ventas', label: 'Gestionar ventas', desc: 'Editar o anular ventas' },
   { id: 'ver_productos', label: 'Ver productos', desc: 'Consultar catalogo' },
   { id: 'gestionar_productos', label: 'Gestionar productos', desc: 'Crear, editar, desactivar' },
   { id: 'ver_mesas', label: 'Ver mesas', desc: 'Consultar estado de mesas' },
@@ -75,7 +77,8 @@ export default function RolesPage() {
       setUsers(Array.isArray(usersData) ? usersData : []);
 
       const normalizedRoles = (Array.isArray(rolesData) ? rolesData : []).map((role) => ({
-        _id: role._id,
+        id: role.id,
+        empresaId: role.empresaId,
         idrol: role.idrol,
         nombre: role.nombre || 'Rol',
         descripcion: role.descripcion || 'Sin descripcion',
@@ -222,7 +225,7 @@ export default function RolesPage() {
     setSaving(true);
     try {
       if (editingRole) {
-        await authService.updateRole(editingRole._id, payload);
+        await authService.updateRole(editingRole.id, payload);
         pushNotice('Rol actualizado correctamente.', 'success');
       } else {
         await authService.createRole(payload);
@@ -256,9 +259,9 @@ export default function RolesPage() {
     setToggling(true);
     try {
       if (toggleRole.activo) {
-        await authService.deactivateRole(toggleRole._id);
+        await authService.deactivateRole(toggleRole.id);
       } else {
-        await authService.activateRole(toggleRole._id);
+        await authService.activateRole(toggleRole.id);
       }
 
       pushNotice(toggleRole.activo ? 'Rol desactivado correctamente.' : 'Rol reactivado correctamente.', 'success');
@@ -336,7 +339,7 @@ export default function RolesPage() {
             const icon = EMOJIS[normalize(role.nombre)] || '🔑';
 
             return (
-              <div key={role._id} className={`role-card ${role.activo ? '' : 'off'}`}>
+              <div key={role.id} className={`role-card ${role.activo ? '' : 'off'}`}>
                 <div className="role-card-top">
                   <div className="role-color-dot" style={{ background: `${role.color}20` }}>
                     <span style={{ fontSize: '20px' }}>{icon}</span>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import authService from '../services/api';
 import PageHeader from '../components/PageHeader';
 import { UxToast } from '../components/UXFeedback';
+import { getStoredSettings } from '../utils/settings';
 import '../styles/product.css';
 
 const CATEGORIES = ['Comida', 'Bebida', 'Postre', 'Otro'];
@@ -31,6 +32,8 @@ const getStockState = (stock) => {
 };
 
 export default function ProductsPage() {
+  const [appSettings, setAppSettings] = useState(getStoredSettings());
+  const [lowStockNoticeKey, setLowStockNoticeKey] = useState('');
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentFilter, setCurrentFilter] = useState('all');
@@ -70,7 +73,7 @@ export default function ProductsPage() {
       const normalized = (Array.isArray(data) ? data : []).map((p) => {
         const cat = normalizeCategory(p.categoria);
         return {
-          _id: p._id,
+          id: p.id,
           idproducto: p.idproducto || '',
           nombre: p.nombre || 'Producto',
           categoria: cat,
@@ -91,6 +94,15 @@ export default function ProductsPage() {
 
   useEffect(() => {
     loadProducts();
+  }, []);
+
+  useEffect(() => {
+    const handler = (event) => {
+      const next = event?.detail || getStoredSettings();
+      setAppSettings(next);
+    };
+    window.addEventListener('app-settings-updated', handler);
+    return () => window.removeEventListener('app-settings-updated', handler);
   }, []);
 
   const filteredProducts = useMemo(() => {
@@ -116,14 +128,32 @@ export default function ProductsPage() {
     });
   }, [products, searchTerm, currentFilter, onlyAvailable, sortBy]);
 
+  const lowStockThreshold = Number(appSettings.lowStockThreshold || 0);
   const stats = useMemo(() => {
     return {
       total: products.length,
       active: products.filter((p) => p.disponible).length,
       inactive: products.filter((p) => !p.disponible).length,
-      lowStock: products.filter((p) => p.stock <= 3).length
+      lowStock: products.filter((p) => p.stock <= lowStockThreshold).length
     };
-  }, [products]);
+  }, [products, lowStockThreshold]);
+
+  useEffect(() => {
+    if (!appSettings.lowStockAlerts) return;
+    if (!stats.lowStock) {
+      if (lowStockNoticeKey) setLowStockNoticeKey('');
+      return;
+    }
+
+    const key = `${lowStockThreshold}-${stats.lowStock}`;
+    if (key === lowStockNoticeKey) return;
+
+    pushNotice(
+      `Alerta: ${stats.lowStock} producto(s) con stock bajo (<= ${lowStockThreshold}).`,
+      'warning'
+    );
+    setLowStockNoticeKey(key);
+  }, [appSettings.lowStockAlerts, lowStockThreshold, stats.lowStock, lowStockNoticeKey]);
 
   const openNew = () => {
     setEditingId(null);
@@ -138,7 +168,7 @@ export default function ProductsPage() {
   };
 
   const openEdit = (product) => {
-    setEditingId(product._id);
+    setEditingId(product.id);
     setFormData({
       nombre: product.nombre,
       categoria: product.categoria,
@@ -219,7 +249,7 @@ export default function ProductsPage() {
 
     setToggling(true);
     try {
-      await authService.api.patch(`/products/${toggleTarget._id}/disponible`, {
+      await authService.api.patch(`/products/${toggleTarget.id}/disponible`, {
         disponible: !toggleTarget.disponible
       });
 
@@ -363,13 +393,13 @@ export default function ProductsPage() {
               </thead>
               <tbody>
                 {filteredProducts.map((p) => (
-                  <tr key={p._id} className={`prod-row ${p.disponible ? '' : 'inactive'}`}>
+                  <tr key={p.id} className={`prod-row ${p.disponible ? '' : 'inactive'}`}>
                     <td>
                       <div className="prod-info">
                         <div className="prod-emoji-box" style={{ filter: p.disponible ? 'none' : 'grayscale(1)' }}>{p.emoji}</div>
                         <div>
                           <div className="prod-name">{p.nombre}</div>
-                          <div className="prod-id">#{String(p.idproducto || '').slice(-6) || p._id.slice(-6)}</div>
+                          <div className="prod-id">#{String(p.idproducto || '').slice(-6) || p.id.slice(-6)}</div>
                         </div>
                       </div>
                     </td>

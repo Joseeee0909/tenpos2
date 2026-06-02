@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import authService from '../services/api';
 import PageHeader from '../components/PageHeader';
 import { UxConfirm, UxToast } from '../components/UXFeedback';
+import { getStoredSettings } from '../utils/settings';
 import '../styles/pedido.css';
 
 const STATUS_SEQUENCE = ['pendiente', 'preparando', 'listo', 'entregado'];
@@ -14,7 +15,35 @@ const STATUS_LABEL = {
 };
 
 const toCurrency = (value) => `$${Math.round(Number(value || 0)).toLocaleString('es-CO')}`;
-const taxFromSubtotal = (subtotal) => Math.round(Number(subtotal || 0) * 0.16);
+
+const readTaxSettings = () => {
+  const stored = getStoredSettings();
+  const vatPercent = Number(stored.vatPercent ?? 19);
+  const applyVat = stored.applyVat !== false;
+  const pricesIncludeVat = stored.pricesIncludeVat !== false;
+  return { vatPercent, applyVat, pricesIncludeVat };
+};
+
+const buildTotals = (sum, taxSettings) => {
+  const base = Math.round(Number(sum || 0));
+  const vatRate = taxSettings.applyVat ? taxSettings.vatPercent / 100 : 0;
+
+  if (!vatRate) {
+    return { subtotal: base, tax: 0, total: base };
+  }
+
+  if (taxSettings.pricesIncludeVat) {
+    const subtotal = Math.round(base / (1 + vatRate));
+    let tax = Math.round(subtotal * vatRate);
+    const correction = base - (subtotal + tax);
+    if (correction !== 0) tax += correction;
+    return { subtotal, tax, total: base };
+  }
+
+  const subtotal = base;
+  const tax = Math.round(subtotal * vatRate);
+  return { subtotal, tax, total: subtotal + tax };
+};
 const getTime = (dateValue) => {
   const date = new Date(dateValue || Date.now());
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
@@ -32,10 +61,19 @@ const categoryEmoji = {
 
 const getDefaultResponsable = () => {
   try {
-    const user = JSON.parse(localStorage.getItem('usuario') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('usuario') || '{}');
     return user?.nombre || user?.username || 'Sin asignar';
   } catch {
     return 'Sin asignar';
+  }
+};
+
+const getDefaultMeseroId = () => {
+  try {
+    const user = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+    return user?.id || null;
+  } catch {
+    return null;
   }
 };
 
@@ -58,6 +96,7 @@ export default function PedidosPage() {
   const [responsableFormValue, setResponsableFormValue] = useState('');
   const [notice, setNotice] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
+  const [taxSettings, setTaxSettings] = useState(readTaxSettings);
 
   const pushNotice = (message, type = 'info') => {
     setNotice({ message, type, id: Date.now() });
@@ -90,15 +129,28 @@ export default function PedidosPage() {
 
   const productById = useMemo(() => {
     const map = new Map();
-    products.forEach((p) => map.set(String(p._id), p));
+    products.forEach((p) => map.set(String(p.id), p));
     return map;
   }, [products]);
+
+  useEffect(() => {
+    const handleSettings = () => setTaxSettings(readTaxSettings());
+    const handleStorage = (event) => {
+      if (event.key === 'app_settings') handleSettings();
+    };
+    window.addEventListener('app-settings-updated', handleSettings);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('app-settings-updated', handleSettings);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
   const normalizedOrders = useMemo(() => {
     return orders.map((o) => {
       const items = Array.isArray(o.productos)
         ? o.productos.map((item) => {
-            const productId = item?.productoId?._id || item?.productoId || null;
+            const productId = item?.productoId?.id || item?.productoId || null;
             const realProduct = productById.get(String(productId || ''));
             const category = (realProduct?.categoria || '').toLowerCase();
             const name = item?.nombre || realProduct?.nombre || 'Producto';
@@ -117,12 +169,11 @@ export default function PedidosPage() {
           })
         : [];
 
-      const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
-      const total = Number(o.total ?? (subtotal + taxFromSubtotal(subtotal)));
-
+      const sumWithVat = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+      const totals = buildTotals(sumWithVat, taxSettings);
       return {
-        _id: o._id,
-        id: `#${String(o._id || '').slice(-4).toUpperCase()}`,
+        _id: o.id,
+        id: `#${String(o.id || '').slice(-4).toUpperCase()}`,
         mesaNumero: Number(o.mesa),
         table: `Mesa ${o.mesa}`,
         resp: o?.mesero?.nombre || o?.mesero?.username || o?.responsable || 'Sin asignar',
@@ -130,15 +181,15 @@ export default function PedidosPage() {
         time: getTime(o.fecha),
         fecha: o.fecha,
         items,
-        subtotal,
-        tax: taxFromSubtotal(subtotal),
-        total
+        subtotal: totals.subtotal,
+        tax: totals.tax,
+        total: totals.total
       };
     });
-  }, [orders, productById]);
+  }, [orders, productById, taxSettings]);
 
   const selectedOrder = useMemo(
-    () => normalizedOrders.find((o) => o._id === selectedOrderId) || null,
+    () => normalizedOrders.find((o) => o.id === selectedOrderId) || null,
     [normalizedOrders, selectedOrderId]
   );
 
@@ -177,12 +228,14 @@ export default function PedidosPage() {
     });
   }, [products, selectedCategory, productSearch]);
 
-  const cartSubtotal = useMemo(
+  const cartSumWithVat = useMemo(
     () => cart.reduce((sum, i) => sum + Number(i.price || 0) * Number(i.qty || 0), 0),
     [cart]
   );
-  const cartTax = useMemo(() => taxFromSubtotal(cartSubtotal), [cartSubtotal]);
-  const cartTotal = useMemo(() => cartSubtotal + cartTax, [cartSubtotal, cartTax]);
+  const cartTotals = useMemo(() => buildTotals(cartSumWithVat, taxSettings), [cartSumWithVat, taxSettings]);
+  const cartSubtotal = cartTotals.subtotal;
+  const cartTax = cartTotals.tax;
+  const cartTotal = cartTotals.total;
 
   const loadAll = async () => {
     try {
@@ -193,7 +246,8 @@ export default function PedidosPage() {
       ]);
       setOrders(Array.isArray(pedidosData) ? pedidosData : []);
       setMesas(Array.isArray(mesasData) ? mesasData : []);
-      setProducts(Array.isArray(productosData) ? productosData : []);
+      const safeProducts = Array.isArray(productosData) ? productosData : [];
+      setProducts(safeProducts.filter((p) => p?.disponible !== false));
     } catch (error) {
       console.error('Error cargando datos de pedidos:', error);
       pushNotice('No se pudieron cargar pedidos, productos y mesas.', 'error');
@@ -286,7 +340,7 @@ export default function PedidosPage() {
 
   const addCart = (product) => {
     setCart((prev) => {
-      const idx = prev.findIndex((i) => i.productId === String(product._id));
+      const idx = prev.findIndex((i) => i.productId === String(product.id));
       if (idx >= 0) {
         const updated = [...prev];
         updated[idx] = { ...updated[idx], qty: updated[idx].qty + 1 };
@@ -296,7 +350,7 @@ export default function PedidosPage() {
       return [
         ...prev,
         {
-          productId: String(product._id),
+          productId: String(product.id),
           name: product.nombre,
           price: Number(product.precio || 0),
           qty: 1,
@@ -338,7 +392,7 @@ export default function PedidosPage() {
   const updateMesaState = async (mesaNumero, estado) => {
     const mesa = getMesaByNumero(mesaNumero);
     if (!mesa) return;
-    await authService.actualizarMesa(mesa._id, { estado });
+    await authService.actualizarMesa(mesa.id, { estado });
   };
 
   const saveOrder = async () => {
@@ -356,7 +410,7 @@ export default function PedidosPage() {
       const payload = {
         mesa: Number(mesaFormValue),
         responsable: (responsableFormValue || '').trim() || getDefaultResponsable(),
-        estado: editingOrderId ? normalizedOrders.find((o) => o._id === editingOrderId)?.status || 'pendiente' : 'pendiente',
+        estado: editingOrderId ? normalizedOrders.find((o) => o.id === editingOrderId)?.status || 'pendiente' : 'pendiente',
         productos: cart.map((i) => ({
           productoId: i.productId,
           nombre: i.name,
@@ -366,6 +420,11 @@ export default function PedidosPage() {
         })),
         total: cartTotal
       };
+
+      if (!editingOrderId) {
+        const meseroId = getDefaultMeseroId();
+        if (meseroId) payload.mesero = meseroId;
+      }
 
       if (editingOrderId) {
         await authService.actualizarPedido(editingOrderId, payload);
@@ -422,7 +481,7 @@ export default function PedidosPage() {
       }
       await loadAll();
       setSelectedOrderId(order._id);
-      pushNotice(`Pedido ${order.id} actualizado a ${STATUS_LABEL[nextStatus]}.`, 'success');
+      pushNotice(`Pedido ${order._id} actualizado a ${STATUS_LABEL[nextStatus]}.`, 'success');
     } catch (error) {
       console.error('Error avanzando estado:', error);
       pushNotice('No se pudo actualizar el estado del pedido.', 'error');
@@ -534,9 +593,9 @@ export default function PedidosPage() {
                     const itemNames = `${order.items.slice(0, 2).map((i) => i.name).join(', ')}${order.items.length > 2 ? ` +${order.items.length - 2} más` : ''}`;
                     return (
                       <div
-                        key={order._id}
-                        className={`order-card ${selectedOrderId === order._id ? 'sel' : ''}`}
-                        onClick={() => setSelectedOrderId(order._id)}
+                        key={order.id}
+                        className={`order-card ${selectedOrderId === order.id ? 'sel' : ''}`}
+                        onClick={() => setSelectedOrderId(order.id)}
                       >
                         <div className={`card-stripe stripe-${order.status}`}></div>
                         <div className="card-inner">
@@ -604,7 +663,7 @@ export default function PedidosPage() {
 
                     <div className="prev-totals">
                       <div className="prev-tot-row"><span className="ptl">Subtotal</span><span className="ptv">{toCurrency(selectedOrder.subtotal)}</span></div>
-                      <div className="prev-tot-row"><span className="ptl">IVA (16%)</span><span className="ptv">{toCurrency(selectedOrder.tax)}</span></div>
+                      <div className="prev-tot-row"><span className="ptl">IVA ({taxSettings.applyVat ? taxSettings.vatPercent : 0}%)</span><span className="ptv">{toCurrency(selectedOrder.tax)}</span></div>
                       <div className="prev-grand-row"><span className="pgl">Total</span><span className="pgv">{toCurrency(selectedOrder.total)}</span></div>
                     </div>
                   </div>
@@ -661,7 +720,7 @@ export default function PedidosPage() {
                   const cat = (product.categoria || '').toLowerCase();
                   const emoji = categoryEmoji[cat] || categoryEmoji.otro;
                   return (
-                    <div key={product._id} className="prod-tile" onClick={() => addCart(product)}>
+                    <div key={product.id} className="prod-tile" onClick={() => addCart(product)}>
                       <div className="prod-tile-top"><span className="prod-tile-emoji">{emoji}</span><span className="prod-tile-plus">+</span></div>
                       <div className="prod-tile-name">{product.nombre}</div>
                       <div className="prod-tile-footer"><span className="prod-tile-price">{toCurrency(product.precio)}</span><span className="prod-tile-cat">{product.categoria}</span></div>
@@ -680,7 +739,7 @@ export default function PedidosPage() {
                   <select className="cart-select-inline" value={mesaFormValue} onChange={(e) => setMesaFormValue(e.target.value)}>
                     <option value="">Seleccionar</option>
                     {mesas.map((m) => (
-                      <option key={m._id} value={String(m.numero)}>{`Mesa ${m.numero}`}</option>
+                      <option key={m.id} value={String(m.numero)}>{`Mesa ${m.numero}`}</option>
                     ))}
                   </select>
                 </div>
@@ -740,7 +799,7 @@ export default function PedidosPage() {
 
               <div className="cart-foot">
                 <div className="cf-row"><span className="cfl">Subtotal</span><span className="cfv">{toCurrency(cartSubtotal)}</span></div>
-                <div className="cf-row"><span className="cfl">IVA (16%)</span><span className="cfv">{toCurrency(cartTax)}</span></div>
+                <div className="cf-row"><span className="cfl">IVA ({taxSettings.applyVat ? taxSettings.vatPercent : 0}%)</span><span className="cfv">{toCurrency(cartTax)}</span></div>
                 <div className="cf-grand"><span className="cfgl">Total a pagar</span><span className="cfgv">{toCurrency(cartTotal)}</span></div>
                 <button className="confirm-btn" type="button" onClick={saveOrder} disabled={saving}>
                   {saving ? 'Guardando...' : 'Confirmar pedido'}

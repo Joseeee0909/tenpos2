@@ -7,16 +7,18 @@ import '../styles/menu.css';
 
 const toCurrency = (value) => `$${Math.round(Number(value || 0)).toLocaleString('es-CO')}`;
 
-const isToday = (dateValue) => {
-  const d = new Date(dateValue || Date.now());
-  const now = new Date();
-  return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-};
-
 const normalizeRole = (role) => {
   const value = String(role || '').trim().toLowerCase();
   if (value === 'administrador') return 'admin';
   return value;
+};
+
+const hasPermission = (user, required) => {
+  if (!required || !required.length) return true;
+  const role = normalizeRole(user?.rol);
+  if (['admin', 'root'].includes(role)) return true;
+  const perms = Array.isArray(user?.permisos) ? user.permisos : [];
+  return required.some((perm) => perms.includes(perm));
 };
 
 const formatClock = (dateValue) => {
@@ -57,39 +59,16 @@ function HomePage() {
   const loadStats = async () => {
     try {
       setLoading(true);
-      const [productosData, totalUsuarios, pedidosData, mesasData] = await Promise.all([
-        authService.getProducts(),
-        authService.getTotalUsers(),
-        authService.getPedidos(),
-        authService.getMesas()
-      ]);
-
-      const productos = Array.isArray(productosData) ? productosData : [];
-      const pedidos = Array.isArray(pedidosData) ? pedidosData : [];
-      const mesas = Array.isArray(mesasData) ? mesasData : [];
-
-      const productosActivos = productos.filter((p) => p.disponible !== false).length;
-
-      const pedidosHoy = pedidos.filter((p) => isToday(p.fecha));
-      const completadasHoy = pedidosHoy.filter((p) => String(p.estado || '').toLowerCase() === 'entregado');
-      const totalCompletadas = completadasHoy.reduce((sum, p) => sum + Number(p.total || 0), 0);
-      const ticketPromedioHoy = completadasHoy.length ? totalCompletadas / completadasHoy.length : 0;
-
-      const pedidosPreparando = pedidos.filter((p) => String(p.estado || '').toLowerCase() === 'preparando').length;
-      const pedidosPendientes = pedidos.filter((p) => String(p.estado || '').toLowerCase() === 'pendiente').length;
-
-      const mesasOcupadas = mesas.filter((m) => ['ocupada', 'reservada'].includes(String(m.estado || '').toLowerCase())).length;
-      const mesasDisponibles = mesas.filter((m) => String(m.estado || '').toLowerCase() === 'disponible').length;
-
+      const summary = await authService.getDashboardSummary();
       setStats({
-        productosActivos,
-        usuarios: Number(totalUsuarios || 0),
-        ordenesCompletadasHoy: completadasHoy.length,
-        ticketPromedioHoy,
-        pedidosPreparando,
-        mesasOcupadas,
-        mesasDisponibles,
-        pedidosPendientes
+        productosActivos: Number(summary?.productosActivos || 0),
+        usuarios: Number(summary?.usuarios || 0),
+        ordenesCompletadasHoy: Number(summary?.ordenesCompletadasHoy || 0),
+        ticketPromedioHoy: Number(summary?.ticketPromedioHoy || 0),
+        pedidosPreparando: Number(summary?.pedidosPreparando || 0),
+        mesasOcupadas: Number(summary?.mesasOcupadas || 0),
+        mesasDisponibles: Number(summary?.mesasDisponibles || 0),
+        pedidosPendientes: Number(summary?.pedidosPendientes || 0)
       });
 
       setLastUpdated(new Date());
@@ -134,11 +113,16 @@ function HomePage() {
   ];
 
   const quickActions = useMemo(() => {
-    const base = [
-      { id: 'nuevo-pedido', icon: '🧾', text: 'Nuevo Pedido', route: '/pedidos?mode=create', tone: 'primary' },
-      { id: 'mesas', icon: '🪑', text: 'Ver Mesas', route: '/mesas', tone: 'neutral' },
-      { id: 'productos', icon: '📦', text: 'Ver Productos', route: '/productos', tone: 'neutral' }
-    ];
+    const base = [];
+    if (hasPermission(user, ['crear_pedidos', 'editar_pedidos', 'ver_pedidos'])) {
+      base.push({ id: 'nuevo-pedido', icon: '🧾', text: 'Nuevo Pedido', route: '/pedidos?mode=create', tone: 'primary' });
+    }
+    if (hasPermission(user, ['ver_mesas', 'gestionar_mesas'])) {
+      base.push({ id: 'mesas', icon: '🪑', text: 'Ver Mesas', route: '/mesas', tone: 'neutral' });
+    }
+    if (hasPermission(user, ['ver_productos', 'gestionar_productos'])) {
+      base.push({ id: 'productos', icon: '📦', text: 'Ver Productos', route: '/productos', tone: 'neutral' });
+    }
 
     if (canManageAccess) {
       base.push(
@@ -148,7 +132,7 @@ function HomePage() {
     }
 
     return base;
-  }, [canManageAccess]);
+  }, [canManageAccess, user]);
 
   return (
     <div className="dashboard-page">

@@ -116,8 +116,8 @@ export default function UsersPage() {
     try {
       const data = await authService.getUsers();
       const normalized = (Array.isArray(data) ? data : []).map((user) => ({
-        _id: user._id,
-        idusuario: user.idusuario || `ID-${String(user._id || '').slice(-4).toUpperCase()}`,
+        id: user.id,
+        idusuario: user.idusuario || `ID-${String(user.id || '').slice(-4).toUpperCase()}`,
         nombre: user.nombre || 'Usuario',
         username: user.username || '',
         email: user.email || '-',
@@ -299,7 +299,7 @@ export default function UsersPage() {
     setSaving(true);
     try {
       if (editingUser) {
-        await authService.updateUser(editingUser._id, basePayload);
+        await authService.updateUser(editingUser.id, basePayload);
         pushNotice('Usuario actualizado correctamente.', 'success');
       } else {
         await authService.register({ ...basePayload, activo: true });
@@ -322,9 +322,9 @@ export default function UsersPage() {
     setToggling(true);
     try {
       if (toggleTarget.activo) {
-        await authService.deactivateUser(toggleTarget._id);
+        await authService.deactivateUser(toggleTarget.id);
       } else {
-        await authService.activateUser(toggleTarget._id);
+        await authService.activateUser(toggleTarget.id);
       }
 
       pushNotice(
@@ -445,7 +445,7 @@ export default function UsersPage() {
                 {filteredUsers.map((user) => {
                   const roleTheme = dynamicRoleTheme(user.rol);
                   return (
-                    <tr key={user._id} className={`urow ${user.activo ? '' : 'off'}`}>
+                    <tr key={user.id} className={`urow ${user.activo ? '' : 'off'}`}>
                       <td>
                         <div className="user-cell">
                           <div

@@ -1,5 +1,6 @@
 // api.js
 import axios from "axios";
+import { readStoredToken, clearStoredAuth } from "../utils/authSession";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -12,7 +13,7 @@ const api = axios.create({
 // 🔐 Añadir token automáticamente
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = readStoredToken();
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
@@ -24,8 +25,7 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("usuario");
+      clearStoredAuth();
       if (window.location.pathname !== "/login") {
         window.location.href = "/login";
       }
@@ -45,8 +45,8 @@ const getUsers = async () => {
 };
 
 // Crear usuario
-const createUser = async ({ nombre, username, email, password, rol }) => {
-  const payload = { nombre, username, email, password, rol };
+const createUser = async ({ nombre, username, empresaSlug, email, password, rol }) => {
+  const payload = { nombre, username, empresaSlug, email, password, rol };
   const res = await api.post("/usuarios", payload);
   return res.data;
 };
@@ -76,8 +76,8 @@ const getRoles = async () => {
   return res.data.roles;
 };
 
-const createRole = async ({ nombre, descripcion }) => {
-  const res = await api.post("/roles", { nombre, descripcion });
+const createRole = async (data) => {
+  const res = await api.post("/roles", data);
   return res.data;
 };
 
@@ -99,8 +99,8 @@ const activateRole = async (id) => {
 /* ---------------------------------------------------
    🔹 AUTH
 --------------------------------------------------- */
-const login = async (username, password) => {
-  const res = await api.post("/login", { username, password });
+const login = async (username, password, empresaSlug) => {
+  const res = await api.post("/login", { username, password, empresaSlug });
   return res.data;
 };
 
@@ -112,9 +112,15 @@ const register = async (data) => {
 // Guardar datos básicos del usuario logueado
 const saveUser = (usuario) => {
   try {
-    localStorage.setItem("usuario", JSON.stringify(usuario));
+    sessionStorage.setItem("usuario", JSON.stringify(usuario));
   } catch (e) {
     console.warn("Error guardando usuario", e);
+  }
+};
+const logout = async () => {  try {
+    await api.post("/logout");
+  } catch (error) {
+    console.error("Error registrando logout:", error);
   }
 };
 
@@ -192,6 +198,97 @@ const eliminarPedido = async (id) => {
   const res = await api.delete(`/pedidos/${id}`);
   return res.data;
 };
+/* ---------------------------------------------------
+   🔹 REPORTES
+--------------------------------------------------- */
+
+// logs
+ const getLogs = async (params) => {
+  const res = await api.get('/auditoria/logs', { params });
+  return res.data;
+};
+
+// sesiones
+ const getSessions = async () => {
+  const res = await api.get('/auditoria/sesiones');
+  return res.data;
+};
+
+// reporte
+ const getReport = async (params) => {
+  const res = await api.get('/auditoria/reporte', { params });
+  return res.data;
+};
+
+// mi historial
+ const getMyHistory = async (params) => {
+  const res = await api.get('/auditoria/historial', { params });
+  return res.data;
+};
+
+// evento frontend
+ const sendAuditEvent = async (data) => {
+  const res = await api.post('/auditoria/eventos', data);
+  return res.data;
+};
+
+const logAccess = async (data) => {
+  const res = await api.post('/auditoria/acceso', data);
+  return res.data;
+};
+
+/* ---------------------------------------------------
+   🔹 VENTAS
+--------------------------------------------------- */
+const getVentas = async () => {
+  const res = await api.get('/ventas');
+  return res.data;
+};
+
+const getVenta = async (id) => {
+  const res = await api.get(`/ventas/${id}`);
+  return res.data;
+};
+
+const crearVenta = async (data) => {
+  const res = await api.post('/ventas', data);
+  return res.data;
+};
+
+const actualizarVenta = async (id, data) => {
+  const res = await api.put(`/ventas/${id}`, data);
+  return res.data;
+};
+
+const eliminarVenta = async (id) => {
+  const res = await api.delete(`/ventas/${id}`);
+  return res.data;
+};
+
+/* ---------------------------------------------------
+   🔹 DASHBOARD
+--------------------------------------------------- */
+const getDashboardSummary = async () => {
+  const res = await api.get('/dashboard/summary');
+  return res.data;
+};
+
+
+
+const getFacturacionConfig = async () => {
+  const res = await api.get('/configuracion/facturacion');
+  return res.data;
+};
+
+const saveFacturacionConfig = async (data) => {
+  const res = await api.put('/configuracion/facturacion', data);
+  return res.data;
+};
+
+const checkoutPedido = async (data) => {
+  const res = await api.post('/ventas/checkout', data);
+  return res.data;
+};
 
 
 /* ---------------------------------------------------
@@ -200,6 +297,7 @@ const eliminarPedido = async (id) => {
 export default {
   api,
   login,
+  logout,
   register,
   saveUser,
   getUsers,
@@ -224,5 +322,20 @@ export default {
   getPedido,
   crearPedido,
   actualizarPedido,
-  eliminarPedido
+  eliminarPedido,
+  getFacturacionConfig,
+  saveFacturacionConfig,
+  checkoutPedido,
+  getVentas,
+  getVenta,
+  crearVenta,
+  actualizarVenta,
+  eliminarVenta,
+  getDashboardSummary,
+  getLogs,
+  getSessions,
+  getReport,
+  getMyHistory,
+  sendAuditEvent,
+  logAccess
 };

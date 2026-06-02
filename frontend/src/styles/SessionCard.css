@@ -1,0 +1,81 @@
+.session-card {
+  background: white;
+  border: 1px solid #e8e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.session-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+}
+
+.session-avatar {
+  width: 42px;
+  height: 42px;
+  background: #c4d5f9;
+  color: #0891b2;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.session-info h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+}
+
+.session-info p {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 2px 0;
+}
+
+.session-duration {
+  text-align: right;
+}
+
+.duration-time {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0891b2;
+  margin-bottom: 4px;
+}
+
+.duration-label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.session-status {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-top: 6px;
+  display: inline-block;
+}
+
+.status-active {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.status-inactive {
+  background: #f3f4f6;
+  color: #64748b;
+}
