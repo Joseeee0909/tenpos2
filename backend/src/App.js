@@ -17,8 +17,10 @@ const app = express()
 app.use(express.json({ limit: '1mb' }))
 app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 
+const frontendOrigin = String(process.env.VITE_FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')
+
 app.use(cors({
-  origin: process.env.VITE_FRONTEND_URL || 'http://localhost:5173',
+  origin: frontendOrigin,
   credentials: true,
   methods: ['GET','POST','PUT','DELETE','PATCH'],
   allowedHeaders: ['Content-Type','Authorization']

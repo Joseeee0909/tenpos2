@@ -184,41 +184,74 @@ model VentaItem {
 }
 
 model Factura {
-  id         String        @id @default(uuid())
-  empresaId  String
-  empresa    Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  numero     String
-  emisor     Json
-  cliente    Json
-  subtotal   Decimal       @db.Decimal(12, 2)
-  ivaTotal   Decimal       @default(0) @db.Decimal(12, 2)
-  propina    Decimal       @default(0) @db.Decimal(12, 2)
-  total      Decimal       @db.Decimal(12, 2)
-  metodoPago String
-  ventaId    String?
-  venta      Venta?        @relation(fields: [ventaId], references: [id], onDelete: SetNull)
-  pedidoId   String?
-  pedido     Pedido?       @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
-  meseroId   String?
-  mesero     Usuario?      @relation("FacturaMesero", fields: [meseroId], references: [id], onDelete: SetNull)
-  mesa       Int?
-  pdfPath    String?
-  fecha      DateTime      @default(now())
-  items      FacturaItem[]
+  id            String        @id @default(uuid())
+
+  empresaId     String
+  empresa       Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  prefijo       String?       @default("POS")
+  numero        String
+
+  emisor        Json
+  cliente       Json
+
+  subtotal      Decimal       @db.Decimal(12,2)
+  ivaTotal      Decimal       @default(0) @db.Decimal(12,2)
+  propina       Decimal       @default(0) @db.Decimal(12,2)
+  total         Decimal       @db.Decimal(12,2)
+
+  metodoPago    String
+
+  estado        String        @default("GENERADA")
+
+  cufe          String?
+  xmlPath       String?
+  pdfPath       String?
+
+  dianStatus    String?
+  dianResponse  Json?
+
+  ventaId       String?
+  venta         Venta?        @relation(fields: [ventaId], references: [id], onDelete: SetNull)
+
+  pedidoId      String?
+  pedido        Pedido?       @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
+
+  meseroId      String?
+  mesero        Usuario?      @relation("FacturaMesero", fields: [meseroId], references: [id], onDelete: SetNull)
+
+  mesa          Int?
+
+  fecha         DateTime      @default(now())
+
+  items         FacturaItem[]
 
   @@unique([empresaId, numero])
   @@index([empresaId, fecha])
 }
 
 model FacturaItem {
-  id         String   @id @default(uuid())
-  facturaId  String
-  factura    Factura  @relation(fields: [facturaId], references: [id], onDelete: Cascade)
-  productoId String?
-  producto   Product? @relation(fields: [productoId], references: [id], onDelete: SetNull)
-  nombre     String
-  cantidad   Int
-  precio     Decimal  @db.Decimal(12, 2)
+  id              String   @id @default(uuid())
+
+  facturaId       String
+  factura         Factura  @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+
+  productoId      String?
+  producto        Product? @relation(fields: [productoId], references: [id], onDelete: SetNull)
+
+  codigo          String?
+
+  nombre          String
+
+  cantidad        Int
+
+  precio          Decimal  @db.Decimal(12,2)
+
+  ivaPorcentaje   Decimal  @default(19) @db.Decimal(5,2)
+
+  subtotal        Decimal  @db.Decimal(12,2)
+
+  total           Decimal  @db.Decimal(12,2)
 
   @@index([facturaId])
   @@index([productoId])
@@ -235,7 +268,8 @@ model Configuracion {
   telefono    String   @default("")
   resolucion  String   @default("")
   autorizada  String   @default("")
-  prefijo     String   @default("POS - 1")
+  prefijo     String   @default("POS")
+  email       String   @default("")
   responsable String   @default("Responsable de IVA")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

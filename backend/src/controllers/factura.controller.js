@@ -1,13 +1,26 @@
 import fs from 'fs';
 import path from 'path';
 import prisma from '../lib/prisma.js';
-import { asString, mapFactura } from '../lib/prismaUtils.js';
+import { asNumber, asString, mapFactura } from '../lib/prismaUtils.js';
 import { pickFields, toBoolean, toNumber } from '../utils/requestPayload.js';
+import {
+  buildClientePayload,
+  buildEmisorFromConfig,
+  buildFacturaItemData,
+  computeInvoiceTotals,
+  formatInvoiceState,
+  formatPaymentMethod,
+  generateConsecutiveNumber,
+  getTaxSettingsSummary,
+  normalizeInvoicePrefix
+} from '../services/factura.service.js';
+import { buildInvoicePdfBuffer, generateInvoiceQR } from '../services/pdf.service.js';
 
-const FACTURACION_FIELDS = ['nombre', 'nit', 'direccion', 'telefono', 'resolucion', 'autorizada', 'prefijo', 'responsable'];
+const FACTURACION_FIELDS = ['nombre', 'nit', 'direccion', 'telefono', 'email', 'resolucion', 'autorizada', 'prefijo', 'responsable'];
+const FACTURA_STATES = ['BORRADOR', 'GENERADA', 'PENDIENTE_DIAN', 'VALIDADA', 'RECHAZADA', 'ANULADA'];
 
 const ensureDir = (dir) => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); };
-const esc = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 
 const facturaInclude = {
   pedido: {
@@ -16,7 +29,11 @@ const facturaInclude = {
       productos: { include: { producto: true } }
     }
   },
-  venta: true,
+  venta: {
+    include: {
+      items: { include: { producto: true } }
+    }
+  },
   mesero: true,
   items: {
     include: { producto: true }
@@ -28,10 +45,12 @@ const configToFacturacion = (config) => ({
   nit: config?.nit || '800200100-0',
   direccion: config?.direccion || 'Cali, Colombia',
   telefono: config?.telefono || '',
+  email: config?.email || 'empresa@email.com',
   resolucion: config?.resolucion || '',
   autorizada: config?.autorizada || '',
-  prefijo: config?.prefijo || 'POS - 1',
-  responsable: config?.responsable || 'Responsable de IVA'
+  prefijo: config?.prefijo || 'POS',
+  responsable: config?.responsable || 'Responsable de IVA',
+  emisor: buildEmisorFromConfig(config)
 });
 
 const getOrCreateConfig = (empresaId) => prisma.configuracion.upsert({
@@ -76,76 +95,6 @@ const buildTotals = (sum, taxSettings) => {
   return { subtotal, ivaTotal, total: subtotal + ivaTotal };
 };
 
-const buildPdfBuffer = (lines, options = {}) => {
-  const width = Math.round(Number(options.width ?? 350));
-  const lineHeight = Math.round(Number(options.lineHeight ?? 16));
-  const marginTop = Math.round(Number(options.marginTop ?? 50));
-  const marginBottom = Math.round(Number(options.marginBottom ?? 40));
-  const marginLeft = Math.round(Number(options.marginLeft ?? 40));
-  const safeLineCount = Math.max(1, lines.length);
-  const height = Math.max(200, marginTop + marginBottom + (safeLineCount * lineHeight));
-  const startY = Math.max(lineHeight, height - marginTop);
-
-  const content = ['BT', '/F1 11 Tf', `${marginLeft} ${startY} Td`];
-  lines.forEach((line, index) => {
-    if (index > 0) content.push(`0 -${lineHeight} Td`);
-    content.push(`(${esc(line)}) Tj`);
-  });
-  content.push('ET');
-  const stream = content.join('\n');
-  const objs = [];
-  objs.push('1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj');
-  objs.push('2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj');
-  objs.push(`3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Contents 5 0 R /Resources << /Font << /F1 4 0 R >> >> >> endobj`);
-  objs.push('4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Courier >> endobj');
-  objs.push(`5 0 obj << /Length ${stream.length} >> stream\n${stream}\nendstream endobj`);
-  let pdf = '%PDF-1.4\n';
-  const offs = [0];
-  objs.forEach((obj) => { offs.push(pdf.length); pdf += `${obj}\n`; });
-  const xref = pdf.length;
-  pdf += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n`;
-  for (let index = 1; index < offs.length; index += 1) {
-    pdf += `${String(offs[index]).padStart(10, '0')} 00000 n \n`;
-  }
-  pdf += `trailer << /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
-  return Buffer.from(pdf);
-};
-
-const facturaLines = ({ title, numero, emisor, cliente, mesa, pedidoId, items, totals, propina, total, metodoPago }) => {
-  const lines = [];
-  const pushIf = (label, value) => { if (value) lines.push(`${label}${value}`); };
-
-  lines.push(emisor.nombre || title);
-  pushIf('', emisor.nit);
-  pushIf('', emisor.direccion);
-  pushIf('Tel: ', emisor.telefono);
-  if (title !== 'PRECUENTA') {
-    pushIf('Resolucion DIAN ', emisor.resolucion);
-    pushIf('Autorizada el: ', emisor.autorizada);
-    pushIf('Prefijo POS Del: ', emisor.prefijo);
-    pushIf('', emisor.responsable);
-  }
-  lines.push('----------------------------');
-  lines.push(`${title === 'PRECUENTA' ? 'Precuenta' : 'Factura de venta'}: ${emisor.prefijo || 'POS'} - ${numero}`);
-  lines.push(`Fecha: ${new Date().toLocaleString('es-CO')}`);
-  if (cliente) {
-    lines.push(`Cliente: ${cliente.nombre}`);
-    lines.push(`C.C / NIT : ${cliente.documento}`);
-  }
-  if (mesa) lines.push(`Mesa: ${mesa}`);
-  if (pedidoId) lines.push(`Pedido: ${String(pedidoId || '').slice(-6).toUpperCase()}`);
-  lines.push('----------------------------');
-  lines.push('CT  Descripcion        Valor');
-  items.forEach((item) => lines.push(`${item.cantidad}  ${item.nombre.slice(0, 14).padEnd(14, ' ')} ${Math.round(item.precio * item.cantidad)}`));
-  lines.push('----------------------------');
-  lines.push(`SUBTOTAL: ${totals.subtotal}`);
-  lines.push(`IVA: ${totals.ivaTotal}`);
-  lines.push(`PROPINA: ${propina}`);
-  lines.push(`TOTAL: ${total}`);
-  if (metodoPago) lines.push(`Forma de Pago: ${metodoPago}`);
-
-  return lines;
-};
 
 const validateAndDiscountStock = async (tx, empresaId, pedidoItems) => {
   const productIds = [...new Set(pedidoItems.map((item) => item.productoId).filter(Boolean))];
@@ -218,6 +167,33 @@ export const saveConfig = async (req, res) => {
   }
 };
 
+export const generateCUFE = (factura) => {
+  // Placeholder: generate CUFE string from factura data when DIAN integration is activated.
+  // Should use prefijo, numero, fecha, totals and digitial signature schema in future.
+  return null;
+};
+
+export const generateUBLXML = (factura) => {
+  // Placeholder: build UBL 2.1 XML structure from factura object.
+  // This is intentionally empty until DIAN/Factus integration is implemented.
+  return null;
+};
+
+export const signXML = (xml) => {
+  // Placeholder: sign UBL XML with the company's digital certificate.
+  return null;
+};
+
+export const sendToDIAN = async (factura) => {
+  // Placeholder: send signed UBL XML to DIAN or a third-party provider.
+  return null;
+};
+
+export const checkDIANStatus = async (factura) => {
+  // Placeholder: query DIAN status for a previously submitted factura.
+  return null;
+};
+
 export const checkoutPedido = async (req, res) => {
   try {
     const empresaId = req.user.empresaId;
@@ -241,24 +217,15 @@ export const checkoutPedido = async (req, res) => {
     if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' });
 
     const configDoc = await getOrCreateConfig(empresaId);
-    const emisor = configToFacturacion(configDoc);
-    const taxSettings = readTaxSettings(req.body || {});
-    const baseTotal = Number(pedido.total || 0);
-    const totals = buildTotals(baseTotal, taxSettings);
-    const tipRate = Number.isFinite(propinaPercent) ? propinaPercent / 100 : 0;
-    const rawTip = totals.subtotal * tipRate;
-    const propina = incluirPropina ? Math.round(rawTip / 100) * 100 : 0;
-    const total = totals.total + propina;
-    const numero = String(Date.now());
-    const items = pedido.productos.map((item) => ({
-      productoId: item.productoId,
-      nombre: item.nombre,
-      cantidad: Number(item.cantidad || 1),
-      precio: Number(item.precio || 0)
-    }));
-    const clienteData = cliente && typeof cliente === 'object'
-      ? { nombre: cliente.nombre || 'Consumidor Final', documento: cliente.documento || '000000' }
-      : { nombre: 'Consumidor Final', documento: '000000' };
+    const prefijo = normalizeInvoicePrefix(configDoc.prefijo || 'POS');
+    const numero = await generateConsecutiveNumber(empresaId, prefijo);
+    const emisor = buildEmisorFromConfig(configDoc);
+    const clienteData = buildClientePayload(cliente);
+    const facturaItems = pedido.productos.map((item) => buildFacturaItemData(item));
+    const propinaBase = incluirPropina ? Number((facturaItems.reduce((sum, line) => sum + line.subtotal, 0) * (propinaPercent / 100)).toFixed(2)) : 0;
+    const totals = computeInvoiceTotals(facturaItems, propinaBase);
+    const total = totals.total;
+    const metodoPagoLabel = formatPaymentMethod(metodoPago);
 
     const factura = await prisma.$transaction(async (tx) => {
       if (String(pedido.estado || '').toLowerCase() !== 'entregado') {
@@ -268,23 +235,29 @@ export const checkoutPedido = async (req, res) => {
       const created = await tx.factura.create({
         data: {
           empresaId,
+          prefijo,
           numero,
           emisor,
           cliente: clienteData,
           subtotal: totals.subtotal,
           ivaTotal: totals.ivaTotal,
-          propina,
+          propina: propinaBase,
           total,
-          metodoPago,
+          metodoPago: metodoPagoLabel,
+          estado: 'GENERADA',
           pedidoId: pedido.id,
           meseroId: pedido.meseroId || req.user.id || null,
           mesa: pedido.mesa?.numero ?? null,
           items: {
-            create: items.map((item) => ({
+            create: facturaItems.map((item) => ({
               productoId: item.productoId,
+              codigo: item.codigo,
               nombre: item.nombre,
               cantidad: item.cantidad,
-              precio: item.precio
+              precio: item.precio,
+              ivaPorcentaje: item.ivaPorcentaje,
+              subtotal: item.subtotal,
+              total: item.total
             }))
           }
         },
@@ -304,22 +277,27 @@ export const checkoutPedido = async (req, res) => {
       return created;
     });
 
-    const lines = facturaLines({
-      title: 'FACTURA',
-      numero,
-      emisor,
-      cliente: clienteData,
-      items,
-      totals,
-      propina,
-      total,
-      metodoPago
-    });
-
     const dir = path.join(process.cwd(), 'storage', 'facturas');
     ensureDir(dir);
     const filePath = path.join(dir, `${numero}.pdf`);
-    fs.writeFileSync(filePath, buildPdfBuffer(lines));
+    const pdfBuffer = await buildInvoicePdfBuffer({
+      title: 'FACTURA',
+      prefijo,
+      numero,
+      emisor,
+      cliente: clienteData,
+      items: facturaItems,
+      totals,
+      propina: propinaBase,
+      descuento: totals.descuento,
+      metodoPago: metodoPagoLabel,
+      estado: formatInvoiceState('GENERADA'),
+      cufe: null,
+      dianStatus: null,
+      fecha: new Date().toISOString(),
+      taxSettings: getTaxSettingsSummary(configDoc)
+    });
+    fs.writeFileSync(filePath, pdfBuffer);
 
     const updated = await prisma.factura.update({
       where: { id: factura.id },
@@ -355,36 +333,37 @@ export const previewFactura = async (req, res) => {
     if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' });
 
     const configDoc = await getOrCreateConfig(req.user.empresaId);
-    const emisor = configToFacturacion(configDoc);
-    const taxSettings = readTaxSettingsFromQuery(req.query);
-    const baseTotal = Number(pedido.total || 0);
-    const totals = buildTotals(baseTotal, taxSettings);
-    const tipRate = toNumber(req.query.propinaPercent, 0) / 100;
-    const rawTip = totals.subtotal * tipRate;
+    const prefijo = normalizeInvoicePrefix(configDoc.prefijo || 'POS');
+    const emisor = buildEmisorFromConfig(configDoc);
+    const numero = await generateConsecutiveNumber(req.user.empresaId, prefijo);
+    const facturaItems = pedido.productos.map((item) => buildFacturaItemData(item));
     const incluirPropina = toBoolean(req.query.incluirPropina, false);
-    const propina = incluirPropina ? Math.round(rawTip / 100) * 100 : 0;
-    const total = totals.total + propina;
-    const numero = String(Date.now());
-    const items = pedido.productos.map((item) => ({
-      nombre: item.nombre,
-      cantidad: Number(item.cantidad || 1),
-      precio: Number(item.precio || 0)
-    }));
+    const propinaPercent = toNumber(req.query.propinaPercent, 0);
+    const propina = incluirPropina ? Number((facturaItems.reduce((sum, line) => sum + line.subtotal, 0) * (propinaPercent / 100)).toFixed(2)) : 0;
+    const totals = computeInvoiceTotals(facturaItems, propina);
 
-    const lines = facturaLines({
+    const pdfBuffer = await buildInvoicePdfBuffer({
       title: 'PRECUENTA',
+      prefijo,
       numero,
       emisor,
+      cliente: null,
       mesa: pedido.mesa?.numero || '-',
       pedidoId: pedido.id,
-      items,
+      items: facturaItems,
       totals,
       propina,
-      total
+      descuento: totals.descuento,
+      metodoPago: formatPaymentMethod(req.query.metodoPago || 'Efectivo'),
+      estado: formatInvoiceState('BORRADOR'),
+      cufe: null,
+      dianStatus: null,
+      fecha: new Date().toISOString(),
+      taxSettings: getTaxSettingsSummary(configDoc)
     });
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.send(buildPdfBuffer(lines));
+    res.send(pdfBuffer);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
