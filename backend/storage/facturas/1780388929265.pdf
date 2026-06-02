@@ -1,0 +1,66 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 350 442] /Contents 5 0 R /Resources << /Font << /F1 4 0 R >> >> >> endobj
+4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Courier >> endobj
+5 0 obj << /Length 897 >> stream
+BT
+/F1 11 Tf
+40 392 Td
+(SIIGO S.A.S) Tj
+0 -16 Td
+(NIT: 800200100-0) Tj
+0 -16 Td
+(Dirección: Cali, Colombia) Tj
+0 -16 Td
+(Teléfono: 3001234567) Tj
+0 -16 Td
+(Email: empresa@email.com) Tj
+0 -16 Td
+(----------------------------) Tj
+0 -16 Td
+(Factura: POS - 1 - 1780388929265) Tj
+0 -16 Td
+(Estado: GENERADA) Tj
+0 -16 Td
+(Fecha: 2/6/2026 3:28:53 a. m.) Tj
+0 -16 Td
+(----------------------------) Tj
+0 -16 Td
+(Cliente: Consumidor Final) Tj
+0 -16 Td
+(Documento: CC 0000000000) Tj
+0 -16 Td
+(----------------------------) Tj
+0 -16 Td
+(----------------------------) Tj
+0 -16 Td
+(Cant  Producto           Precio   IVA    Subtotal) Tj
+0 -16 Td
+(   1  Hamburguesa     15000.00  19.00% 15000.00) Tj
+0 -16 Td
+(----------------------------) Tj
+0 -16 Td
+(Subtotal general: 15000.00) Tj
+0 -16 Td
+(IVA general: 2850.00) Tj
+0 -16 Td
+(Propina: 0.00) Tj
+0 -16 Td
+(Total: 17850.00) Tj
+0 -16 Td
+(Forma de Pago: cash) Tj
+ET
+endstream endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000309 00000 n 
+trailer << /Size 6 /Root 1 0 R >>
+startxref
+1257
+%%EOF

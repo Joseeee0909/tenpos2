@@ -72,18 +72,26 @@ export const mapVenta = (venta) => {
   });
 };
 
+export const mapFacturaItem = (item) => {
+  if (!item) return item;
+  return withId({
+    ...item,
+    productoId: item.productoId,
+    producto: item.producto ? mapProducto(item.producto) : item.producto,
+    precio: decimalToNumber(item.precio),
+    subtotal: decimalToNumber(item.subtotal),
+    total: decimalToNumber(item.total),
+    ivaPorcentaje: decimalToNumber(item.ivaPorcentaje)
+  });
+};
+
 export const mapFactura = (factura) => {
   if (!factura) return factura;
   return withId({
     ...factura,
     mesero: factura.mesero ?? factura.meseroId,
     items: Array.isArray(factura.items)
-      ? factura.items.map((item) => withId({
-          ...item,
-          productoId: item.productoId,
-          producto: item.producto ? mapProducto(item.producto) : item.producto,
-          precio: decimalToNumber(item.precio)
-        }))
+      ? factura.items.map(mapFacturaItem)
       : [],
     subtotal: decimalToNumber(factura.subtotal),
     ivaTotal: decimalToNumber(factura.ivaTotal),
