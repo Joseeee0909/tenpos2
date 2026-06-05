@@ -84,3 +84,6 @@ Este proyecto fue desarrollado como práctica de desarrollo full stack, enfocado
 
 Jose Luis Muñoz
 Estudiante de Desarrollo de Software – Universidad del Valle
+Victor Camilo Cordoba
+Estudiante de Desarrollo de Software – Universidad del Valle
+
