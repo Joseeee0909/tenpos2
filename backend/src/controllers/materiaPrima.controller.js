@@ -1,4 +1,4 @@
-import MateriaPrima from "../classes/materiaPrima";
+import MateriaPrima from "../classes/materiaPrima.js";
 import {
   pickFields,
   toBoolean,
@@ -18,10 +18,10 @@ const MATERIA_PRIMA_FIELDS = [
 class MateriaPrimaController {
   static async listarMateriasPrimas(req, res) {
     try {
-      const materiasPrimas = await MateriaPrima.obtenerTodos(
+      const MateriasPrimas = await MateriaPrima.obtenerTodos(
         req.user.empresaId,
       );
-      res.status(200).json({ materiasPrimas });
+      res.status(200).json({ MateriasPrimas });
     } catch (err) {
       console.error("Error listando materias primas:", err);
       res.status(500).json({ error: err.message });
@@ -76,7 +76,7 @@ class MateriaPrimaController {
     try {
       const { idMateriaPrima } = req.params;
       const disponible = toBoolean(req.body?.disponible, false);
-      const updatedMateriaPrima = await MateriaPrima.actualizarPorId(
+      const updatedMateriaPrima = await materiaPrima.actualizarPorId(
         idMateriaPrima,
         req.user.empresaId,
         { disponible },
@@ -95,7 +95,7 @@ class MateriaPrimaController {
   static async eliminarMateriaPrima(req, res) {
     try {
       const { idMateriaPrima } = req.params;
-      const updatedMateriaPrima = await MateriaPrima.eliminarPorId(
+      const updatedMateriaPrima = await materiaPrima.eliminarPorId(
         idMateriaPrima,
         req.user.empresaId,
       );
@@ -119,7 +119,7 @@ class MateriaPrimaController {
       const stock = toNumber(payload.stock);
       const disponible = toBoolean(payload.disponible);
       const unidad = toTrimmedString(payload.unidad);
-      const updatedMateriaPrima = await MateriaPrima.actualizarPorId(
+      const updatedMateriaPrima = await materiaPrima.actualizarPorId(
         idMateriaPrima,
         req.user.empresaId,
         { nombre, categoria, stock, disponible, unidad },

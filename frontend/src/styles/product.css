@@ -105,7 +105,7 @@
 .products-v3 .mtitle{font-size:17px;font-weight:700;color:#1e1b4b}
 .products-v3 .mclose{width:32px;height:32px;border-radius:9px;border:1.5px solid #e0e7ff;background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:18px;font-family:inherit;transition:all .12s;line-height:1}
 .products-v3 .mclose:hover{border-color:#4f46e5;color:#4f46e5}
-.products-v3 .mbody{padding:22px 22px 4px}
+.products-v3 .mbody{padding:22px 22px 4px; overflow:auto; max-height:500px}
 .products-v3 .form-lbl{font-size:12px;font-weight:600;color:#64748b;letter-spacing:.2px;margin-bottom:7px;display:block}
 .products-v3 .form-row{margin-bottom:16px}
 .products-v3 .form-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}

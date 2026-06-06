@@ -1,4 +1,4 @@
-import prisma from "../prismaClient.js";
+import prisma from "../lib/prisma.js";
 
 class MateriaPrima {
   constructor(
@@ -20,7 +20,7 @@ class MateriaPrima {
   }
 
   async guardar() {
-    return await prisma.materiaPrima.create({
+    return await prisma.MateriaPrima.create({
       data: {
         empresaId: this.empresaId,
         idMateriaPrima: this.idMateriaPrima,
@@ -34,13 +34,13 @@ class MateriaPrima {
   }
 
   static async obtenerTodos(empresaId) {
-    return await prisma.materiaPrima.findMany({
+    return await prisma.MateriaPrima.findMany({
       where: { empresaId },
     });
   }
 
   static async obtenerPorId(idMateriaPrima, empresaId) {
-    return await prisma.materiaPrima.findFirst({
+    return await prisma.MateriaPrima.findFirst({
       where: {
         idMateriaPrima,
         empresaId,
@@ -49,7 +49,7 @@ class MateriaPrima {
   }
 
   static async eliminarPorId(idMateriaPrima, empresaId) {
-    return await prisma.materiaPrima.update({
+    return await prisma.MateriaPrima.update({
       where: { idMateriaPrima, empresaId },
       data: {
         disponible: false,
@@ -58,7 +58,7 @@ class MateriaPrima {
   }
 
   static async actualizarPorId(idMateriaPrima, empresaId, datosActualizados) {
-    return await prisma.materiaPrima.update({
+    return await prisma.MateriaPrima.update({
       where: { idMateriaPrima, empresaId },
       data: datosActualizados,
     });

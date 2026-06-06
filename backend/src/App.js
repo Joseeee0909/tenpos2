@@ -10,6 +10,8 @@ import tablaRoutes from './routes/tabla.routes.js'
 import facturaRoutes from './routes/factura.routes.js'
 import dashboardRoutes from './routes/dashboard.routes.js'
 import auditoriaRoutes from './routes/auditoria.routes.js'
+import recetaRoutes from './routes/receta.routes.js'
+import materiaPrimaRoutes from './routes/materiaPrima.routes.js'
 import { auditTrail } from './middlewares/audit.middleware.js'
 
 const app = express()
@@ -39,6 +41,8 @@ app.use('/api/mesas', tablaRoutes)
 app.use('/api', facturaRoutes)
 app.use('/api', dashboardRoutes)
 app.use('/api', auditoriaRoutes)
+app.use('/api/recetas', recetaRoutes)
+app.use('/api/materias-primas', materiaPrimaRoutes)
 
 app.use((req, res) => {
   res.status(404).json({ mensaje: 'Ruta no encontrada' })

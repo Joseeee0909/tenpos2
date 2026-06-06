@@ -61,13 +61,39 @@ CREATE TABLE "public"."Product" (
 );
 
 -- CreateTable
+CREATE TABLE "public"."MateriaPrima" (
+    "id" TEXT NOT NULL,
+    "empresaId" TEXT NOT NULL,
+    "idMateriaPrima" TEXT NOT NULL,
+    "nombre" TEXT NOT NULL,
+    "categoria" TEXT NOT NULL,
+    "stock" INTEGER NOT NULL DEFAULT 0,
+    "disponible" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "unidad" TEXT NOT NULL DEFAULT 'unidad',
+
+    CONSTRAINT "MateriaPrima_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."Receta" (
+    "id" TEXT NOT NULL,
+    "empresaId" TEXT NOT NULL,
+    "productoId" TEXT NOT NULL,
+    "materiaPrimaId" TEXT NOT NULL,
+    "cantidad" DECIMAL(10,2) NOT NULL,
+
+    CONSTRAINT "Receta_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "public"."Mesa" (
     "id" TEXT NOT NULL,
     "empresaId" TEXT NOT NULL,
     "numero" INTEGER NOT NULL,
     "capacidad" INTEGER NOT NULL DEFAULT 4,
     "estado" TEXT NOT NULL DEFAULT 'disponible',
-    "pedidoId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -137,6 +163,7 @@ CREATE TABLE "public"."VentaItem" (
 CREATE TABLE "public"."Factura" (
     "id" TEXT NOT NULL,
     "empresaId" TEXT NOT NULL,
+    "prefijo" TEXT DEFAULT 'POS',
     "numero" TEXT NOT NULL,
     "emisor" JSONB NOT NULL,
     "cliente" JSONB NOT NULL,
@@ -145,11 +172,16 @@ CREATE TABLE "public"."Factura" (
     "propina" DECIMAL(12,2) NOT NULL DEFAULT 0,
     "total" DECIMAL(12,2) NOT NULL,
     "metodoPago" TEXT NOT NULL,
+    "estado" TEXT NOT NULL DEFAULT 'GENERADA',
+    "cufe" TEXT,
+    "xmlPath" TEXT,
+    "pdfPath" TEXT,
+    "dianStatus" TEXT,
+    "dianResponse" JSONB,
     "ventaId" TEXT,
     "pedidoId" TEXT,
     "meseroId" TEXT,
     "mesa" INTEGER,
-    "pdfPath" TEXT,
     "fecha" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Factura_pkey" PRIMARY KEY ("id")
@@ -160,9 +192,13 @@ CREATE TABLE "public"."FacturaItem" (
     "id" TEXT NOT NULL,
     "facturaId" TEXT NOT NULL,
     "productoId" TEXT,
+    "codigo" TEXT,
     "nombre" TEXT NOT NULL,
     "cantidad" INTEGER NOT NULL,
     "precio" DECIMAL(12,2) NOT NULL,
+    "ivaPorcentaje" DECIMAL(5,2) NOT NULL DEFAULT 19,
+    "subtotal" DECIMAL(12,2) NOT NULL,
+    "total" DECIMAL(12,2) NOT NULL,
 
     CONSTRAINT "FacturaItem_pkey" PRIMARY KEY ("id")
 );
@@ -178,7 +214,8 @@ CREATE TABLE "public"."Configuracion" (
     "telefono" TEXT NOT NULL DEFAULT '',
     "resolucion" TEXT NOT NULL DEFAULT '',
     "autorizada" TEXT NOT NULL DEFAULT '',
-    "prefijo" TEXT NOT NULL DEFAULT 'POS - 1',
+    "prefijo" TEXT NOT NULL DEFAULT 'POS',
+    "email" TEXT NOT NULL DEFAULT '',
     "responsable" TEXT NOT NULL DEFAULT 'Responsable de IVA',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -186,11 +223,31 @@ CREATE TABLE "public"."Configuracion" (
     CONSTRAINT "Configuracion_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "Empresa_slug_key" ON "public"."Empresa"("slug");
+-- CreateTable
+CREATE TABLE "public"."Auditoria" (
+    "id" TEXT NOT NULL,
+    "empresaId" TEXT NOT NULL,
+    "usuarioId" TEXT,
+    "tipo" TEXT NOT NULL,
+    "accion" TEXT NOT NULL,
+    "modulo" TEXT NOT NULL,
+    "detalle" TEXT NOT NULL DEFAULT '',
+    "exito" BOOLEAN NOT NULL DEFAULT true,
+    "nivel" TEXT NOT NULL DEFAULT 'info',
+    "metodo" TEXT,
+    "ruta" TEXT,
+    "statusCode" INTEGER,
+    "duracionMs" INTEGER,
+    "ip" TEXT,
+    "userAgent" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Auditoria_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateIndex
-CREATE INDEX "Empresa_slug_idx" ON "public"."Empresa"("slug");
+CREATE UNIQUE INDEX "Empresa_slug_key" ON "public"."Empresa"("slug");
 
 -- CreateIndex
 CREATE INDEX "Usuario_empresaId_rolId_idx" ON "public"."Usuario"("empresaId", "rolId");
@@ -223,7 +280,19 @@ CREATE INDEX "Product_empresaId_disponible_idx" ON "public"."Product"("empresaId
 CREATE UNIQUE INDEX "Product_empresaId_idproducto_key" ON "public"."Product"("empresaId", "idproducto");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Mesa_pedidoId_key" ON "public"."Mesa"("pedidoId");
+CREATE INDEX "MateriaPrima_empresaId_categoria_idx" ON "public"."MateriaPrima"("empresaId", "categoria");
+
+-- CreateIndex
+CREATE INDEX "MateriaPrima_empresaId_disponible_idx" ON "public"."MateriaPrima"("empresaId", "disponible");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MateriaPrima_empresaId_idMateriaPrima_key" ON "public"."MateriaPrima"("empresaId", "idMateriaPrima");
+
+-- CreateIndex
+CREATE INDEX "Receta_empresaId_idx" ON "public"."Receta"("empresaId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Receta_productoId_materiaPrimaId_empresaId_key" ON "public"."Receta"("productoId", "materiaPrimaId", "empresaId");
 
 -- CreateIndex
 CREATE INDEX "Mesa_empresaId_estado_idx" ON "public"."Mesa"("empresaId", "estado");
@@ -279,6 +348,18 @@ CREATE UNIQUE INDEX "Configuracion_empresaId_key" ON "public"."Configuracion"("e
 -- CreateIndex
 CREATE INDEX "Configuracion_empresaId_clave_idx" ON "public"."Configuracion"("empresaId", "clave");
 
+-- CreateIndex
+CREATE INDEX "Auditoria_empresaId_createdAt_idx" ON "public"."Auditoria"("empresaId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Auditoria_empresaId_usuarioId_createdAt_idx" ON "public"."Auditoria"("empresaId", "usuarioId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Auditoria_empresaId_tipo_createdAt_idx" ON "public"."Auditoria"("empresaId", "tipo", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Auditoria_empresaId_accion_createdAt_idx" ON "public"."Auditoria"("empresaId", "accion", "createdAt");
+
 -- AddForeignKey
 ALTER TABLE "public"."Usuario" ADD CONSTRAINT "Usuario_empresaId_fkey" FOREIGN KEY ("empresaId") REFERENCES "public"."Empresa"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -290,6 +371,18 @@ ALTER TABLE "public"."Rol" ADD CONSTRAINT "Rol_empresaId_fkey" FOREIGN KEY ("emp
 
 -- AddForeignKey
 ALTER TABLE "public"."Product" ADD CONSTRAINT "Product_empresaId_fkey" FOREIGN KEY ("empresaId") REFERENCES "public"."Empresa"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."MateriaPrima" ADD CONSTRAINT "MateriaPrima_empresaId_fkey" FOREIGN KEY ("empresaId") REFERENCES "public"."Empresa"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Receta" ADD CONSTRAINT "Receta_empresaId_fkey" FOREIGN KEY ("empresaId") REFERENCES "public"."Empresa"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Receta" ADD CONSTRAINT "Receta_productoId_fkey" FOREIGN KEY ("productoId") REFERENCES "public"."Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Receta" ADD CONSTRAINT "Receta_materiaPrimaId_fkey" FOREIGN KEY ("materiaPrimaId") REFERENCES "public"."MateriaPrima"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Mesa" ADD CONSTRAINT "Mesa_empresaId_fkey" FOREIGN KEY ("empresaId") REFERENCES "public"."Empresa"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -344,3 +437,9 @@ ALTER TABLE "public"."FacturaItem" ADD CONSTRAINT "FacturaItem_productoId_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "public"."Configuracion" ADD CONSTRAINT "Configuracion_empresaId_fkey" FOREIGN KEY ("empresaId") REFERENCES "public"."Empresa"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Auditoria" ADD CONSTRAINT "Auditoria_empresaId_fkey" FOREIGN KEY ("empresaId") REFERENCES "public"."Empresa"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Auditoria" ADD CONSTRAINT "Auditoria_usuarioId_fkey" FOREIGN KEY ("usuarioId") REFERENCES "public"."Usuario"("id") ON DELETE SET NULL ON UPDATE CASCADE;
