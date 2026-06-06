@@ -8,15 +8,30 @@ const ALL_PERMS = [
   { id: 'ver_pedidos', label: 'Ver pedidos', desc: 'Consultar lista y detalle' },
   { id: 'crear_pedidos', label: 'Crear pedidos', desc: 'Registrar nuevos pedidos' },
   { id: 'editar_pedidos', label: 'Editar pedidos', desc: 'Modificar pedidos existentes' },
+
   { id: 'ver_ventas', label: 'Ver ventas', desc: 'Consultar historial y detalles' },
   { id: 'gestionar_ventas', label: 'Gestionar ventas', desc: 'Editar o anular ventas' },
+
   { id: 'ver_productos', label: 'Ver productos', desc: 'Consultar catalogo' },
   { id: 'gestionar_productos', label: 'Gestionar productos', desc: 'Crear, editar, desactivar' },
+
   { id: 'ver_mesas', label: 'Ver mesas', desc: 'Consultar estado de mesas' },
   { id: 'gestionar_mesas', label: 'Gestionar mesas', desc: 'Crear y editar mesas' },
+
   { id: 'ver_usuarios', label: 'Ver usuarios', desc: 'Consultar lista de usuarios' },
   { id: 'gestionar_usuarios', label: 'Gestionar usuarios', desc: 'Crear, editar y desactivar' },
-  { id: 'gestionar_roles', label: 'Gestionar roles', desc: 'Crear y editar roles' }
+
+  { id: 'gestionar_roles', label: 'Gestionar roles', desc: 'Crear y editar roles' },
+
+  { id: 'ver_reportes', label: 'Ver reportes', desc: 'Consultar reportes de ventas y productos' },
+  
+  { id: 'ver_materias_primas', label: 'Ver materias primas', desc: 'Consultar catalogo de materias primas' },
+  { id: 'gestionar_materias_primas', label: 'Gestionar materias primas', desc: 'Crear, editar y desactivar materias primas' },
+
+  { id: 'ver_recetas', label: 'Ver recetas', desc: 'Consultar recetas de productos' },
+  { id: 'gestionar_recetas', label: 'Gestionar recetas', desc: 'Crear, editar y eliminar recetas' }
+
+
 ];
 
 const COLORS = ['#7c3aed', '#4f46e5', '#0369a1', '#0f766e', '#16a34a', '#ca8a04', '#ea580c', '#dc2626', '#db2777', '#9333ea'];
