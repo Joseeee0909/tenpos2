@@ -33,22 +33,30 @@ export default function SessionsTab() {
     const logs = await authService.getSessions();
 
     const sessionsData = logs.map((log) => ({
-      user: log.usuarioUsername,
-      role: log.usuarioNombre,
-      device: log.userAgent?.includes("Windows")
-        ? "Windows"
-        : "Desconocido",
-      ip: log.ip,
-      login: new Date(log.createdAt).toLocaleString(),
-      logout: log.accion === "logout"
-        ? new Date(log.createdAt).toLocaleString()
-        : null,
-      duration: "-",
-      status: log.accion === "logout"
-        ? "closed"
-        : "active",
-      avatar: log.usuarioUsername?.charAt(0)?.toUpperCase(),
-    }));
+  user: log.usuarioUsername,
+  role: log.usuarioNombre,
+  device: log.userAgent?.includes("Windows")
+    ? "Windows"
+    : "Desconocido",
+  ip: log.ip,
+
+  // 👇 IMPORTANTE: conservar datos crudos para estadísticas
+  accion: log.accion,
+  createdAt: log.createdAt,
+  exito: log.exito,
+
+  login: log.accion === "login"
+    ? new Date(log.createdAt).toLocaleString()
+    : null,
+
+  logout: log.accion === "logout"
+    ? new Date(log.createdAt).toLocaleString()
+    : null,
+
+  duration: "-",
+  status: log.accion === "logout" ? "closed" : "active",
+  avatar: log.usuarioUsername?.charAt(0)?.toUpperCase(),
+}));
 
     setSessions(sessionsData);
   } catch (err) {
@@ -84,7 +92,10 @@ export default function SessionsTab() {
   ).length;
 
   return {
-    sesiones: sessions.filter((s) => s.status === "active").length,
+    sesiones:
+    sessions.filter((s) => s.accion === "login").length -
+    sessions.filter((s) => s.accion === "logout").length,
+
     logins: loginsHoy,
     fallidos: intentosFallidos,
     tiempoPromedio: "--"

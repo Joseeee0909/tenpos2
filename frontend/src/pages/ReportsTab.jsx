@@ -9,6 +9,11 @@ import '../styles/Misc.css';
 export default function ReportsTab() {
   const [openReport, setOpenReport] = useState(null);
   const [view, setView] = useState('list');
+    const reportTypes = [
+    { key: 'sales', label: 'Reporte de ventas', icon: '📊' },
+    { key: 'inventory', label: 'Reporte de inventario', icon: '📦' },
+    { key: 'users', label: 'Reporte de usuarios', icon: '👥' },
+  ];
   const navigate = useNavigate();
   const handleGenerate = (options) => {
     alert(`Generando reporte en formato ${options.format.toUpperCase()}...`);
@@ -18,7 +23,7 @@ export default function ReportsTab() {
   const stats = useMemo(() => {
       const today = new Date().toISOString().slice(0, 10);
       return {
-        total: 1,
+        total: 0,
         changes: 2,
         users: 5,
         errors: 4,
@@ -37,7 +42,7 @@ export default function ReportsTab() {
                     : "Nuevo pedido"
               }
               subtitle={
-                view === "list" ? `${stats.total} pedidos registrados hoy` : ""
+                view === "list" ? `${stats.total} reportes registrados hoy` : ""
               }
               iconColor="#3b3b7d"
               icon={

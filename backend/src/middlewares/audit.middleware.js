@@ -5,8 +5,9 @@ const EXCLUDED_PREFIXES = ['/api/auditoria'];
 export function auditTrail(req, res, next) {
   const path = String(req.originalUrl || req.url || '');
   const shouldSkip = EXCLUDED_PREFIXES.some((prefix) => path.startsWith(prefix));
+  const isAuthRoute = path.startsWith('/api/login') || path.startsWith('/api/logout');
 
-  if (shouldSkip) {
+  if (shouldSkip || isAuthRoute) {
     return next();
   }
 
@@ -14,6 +15,11 @@ export function auditTrail(req, res, next) {
 
   res.on('finish', () => {
     if (!req.user?.empresaId) return;
+    const metodosAuditables = ['POST', 'PUT', 'PATCH', 'DELETE'];
+
+    if (!metodosAuditables.includes(req.method)) {
+      return;
+      }
     const { tipo, accion } = classifyRoute(req, res);
     void recordAuditLog({
       empresaId: req.user.empresaId,
