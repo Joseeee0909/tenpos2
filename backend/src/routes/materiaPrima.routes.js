@@ -4,10 +4,10 @@ import { verifyToken, requirePermission } from "../middlewares/auth.middleware.j
 
 const router = express.Router();
 
-router.post("/", verifyToken, requirePermission('gestionar_materias_primas'),materiaPrimaController.crearMateriaPrima);
-router.get("/", verifyToken, requirePermission('ver_materias_primas'), materiaPrimaController.listarMateriasPrimas);
-router.put("/:idMateriaPrima", verifyToken, requirePermission('gestionar_materias_primas'), materiaPrimaController.actualizarMateriaPrima);
-router.delete("/:idMateriaPrima", verifyToken, requirePermission('gestionar_materias_primas'), materiaPrimaController.eliminarMateriaPrima);
-router.patch("/:idMateriaPrima/disponible", verifyToken, requirePermission('gestionar_materias_primas'), materiaPrimaController.cambiarDisponibilidad);
+router.post("/", verifyToken, requirePermission('gestionar_inventario'),materiaPrimaController.crearMateriaPrima);
+router.get("/", verifyToken, requirePermission('ver_inventario'), materiaPrimaController.listarMateriasPrimas);
+router.put("/:idMateriaPrima", verifyToken, requirePermission('gestionar_inventario'), materiaPrimaController.actualizarMateriaPrima);
+router.delete("/:idMateriaPrima", verifyToken, requirePermission('gestionar_inventario'), materiaPrimaController.eliminarMateriaPrima);
+router.patch("/:idMateriaPrima/disponible", verifyToken, requirePermission('gestionar_inventario'), materiaPrimaController.cambiarDisponibilidad);
 
 export default router;

@@ -236,6 +236,38 @@ const logAccess = async (data) => {
   const res = await api.post('/auditoria/acceso', data);
   return res.data;
 };
+/* ---------------------------------------------------
+   🔹 INVENTARIO
+--------------------------------------------------- */
+
+const getInventario = async () => {
+  const res = await api.get('/materias-primas');
+  return res.data;
+};
+
+const crearInventario = async (data) => {
+  const res = await api.post('/materias-primas', data);
+  return res.data;
+};
+
+const actualizarInventario = async (id, data) => {
+  const res = await api.put(`/materias-primas/${id}`, data);
+  return res.data;
+};
+
+const eliminarInventario = async (id) => {
+  const res = await api.delete(`/materias-primas/${id}`);
+  return res.data;
+};
+
+const toggleDisponibilidadInventario = async (id, disponible) => {
+  const res = await api.patch(`/materias-primas/${id}/disponible`, { disponible });
+  return res.data;
+};
+
+
+
+
 
 /* ---------------------------------------------------
    🔹 VENTAS
@@ -337,5 +369,9 @@ export default {
   getReport,
   getMyHistory,
   sendAuditEvent,
-  logAccess
+  logAccess,
+  getInventario,
+  crearInventario,
+  actualizarInventario,
+  eliminarInventario
 };

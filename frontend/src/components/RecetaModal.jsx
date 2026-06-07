@@ -1,103 +1,138 @@
 import { useEffect, useState } from "react";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 export default function RecetaModal({ open, onClose, producto }) {
-  const [receta, setReceta] = useState([]);
   const [materiasPrimas, setMateriasPrimas] = useState([]);
+  const [itemsReceta, setItemsReceta] = useState([]);
 
-  const [itemsReceta, setItemsReceta] = useState([
-    { materiaPrimaId: "", cantidad: "" }
-  ]);
   const token = localStorage.getItem("token");
 
-  // ---------------------------
-  // LOAD DATA
-  // ---------------------------
   useEffect(() => {
     if (!open || !producto?.id) return;
 
     const loadData = async () => {
       try {
-        const resReceta = await fetch(`${API_URL}/recetas/${producto.id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const dataReceta = await resReceta.json();
+        const [resReceta, resMP] = await Promise.all([
+          fetch(`${API_URL}/recetas/${producto.id}`, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }),
+          fetch(`${API_URL}/materias-primas`, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          })
+        ]);
 
-        const resMP = await fetch(`${API_URL}/materias-primas`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const dataReceta = await resReceta.json();
         const dataMP = await resMP.json();
 
-        setReceta(dataReceta.receta || []);
         setMateriasPrimas(dataMP.MateriasPrimas || []);
+
+        if (dataReceta.receta?.length) {
+          setItemsReceta(
+            dataReceta.receta.map((r) => ({
+              id: r.id,
+              materiaPrimaId: r.materiaPrimaId,
+              cantidad: r.cantidad
+            }))
+          );
+        } else {
+          setItemsReceta([
+            {
+              id: "",
+              cantidad: ""
+            }
+          ]);
+        }
       } catch (err) {
-        console.error("Error cargando datos del modal:", err);
+        console.error(err);
       }
     };
 
     loadData();
   }, [open, producto?.id]);
 
-  // ---------------------------
-  // HELPERS
-  // ---------------------------
   const updateItem = (index, field, value) => {
     setItemsReceta((prev) => {
       const copy = [...prev];
+
       copy[index] = {
         ...copy[index],
         [field]: value
       };
+
       return copy;
     });
   };
 
   const addItem = () => {
-    setItemsReceta((prev) => {
-      const last = prev[prev.length - 1];
-      return [...prev, { materiaPrimaId: "", cantidad: "" }];
-    });
+    setItemsReceta((prev) => [
+      ...prev,
+      {
+        id: "",
+        cantidad: ""
+      }
+    ]);
   };
 
   const removeItem = (index) => {
-    setItemsReceta((prev) =>
-      prev.length === 1 ? prev : prev.filter((_, i) => i !== index)
-    );
+    setItemsReceta((prev) => {
+      if (prev.length === 1) {
+        return [
+          {
+            id: "",
+            cantidad: ""
+          }
+        ];
+      }
+
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
-  // ---------------------------
-  // SAVE
-  // ---------------------------
   const saveReceta = async () => {
     try {
       const ingredientes = itemsReceta.filter(
-        (i) => i.materiaPrimaId && i.cantidad
+        (i) =>
+          i.materiaPrimaId &&
+          Number(i.cantidad) > 0
       );
+
+      if (!ingredientes.length) {
+        alert("Debes agregar al menos un ingrediente");
+        return;
+      }
 
       const payload = {
         productoId: producto.id,
         ingredientes
       };
+      
+      const res = await fetch(
+        `${API_URL}/recetas/${producto.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            ingredientes
+          })
+        }
+      );
 
-      await fetch(`${API_URL}/recetas`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
+      if (!res.ok) {
+        throw new Error("Error guardando receta");
+      }
 
-      // reload receta
-      const res = await fetch(`${API_URL}/recetas/${producto.id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setReceta(data.receta || []);
-
-      setItemsReceta([{ materiaPrimaId: "", cantidad: "" }]);
+      onClose();
     } catch (err) {
-      console.error("Error guardando receta:", err);
+      console.error(err);
+      alert("Error guardando receta");
     }
   };
 
@@ -105,116 +140,111 @@ export default function RecetaModal({ open, onClose, producto }) {
 
   return (
     <div className="overlay" onClick={onClose}>
-    <div className="mbox" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="mbox receta-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mhead">
+          <span className="mtitle">
+            Receta de {producto?.nombre}
+          </span>
 
-      {/* HEADER */}
-      <div className="mhead">
-        <span className="mtitle">
-          Receta de {producto?.nombre}
-        </span>
-        <button className="mclose" onClick={onClose}>×</button>
-      </div>
-
-      {/* BODY */}
-      <div className="mbody">
-        <div>
-          <h4>Receta actual</h4>
-
-          {receta.length === 0 ? (
-            <p style={{ opacity: 0.6 }}>
-              Este producto aún no tiene receta.
-            </p>
-          ) : (
-            <ul>
-              {receta.map((r) => (
-                <li key={r.id}>
-                  {r.materiasPrimas?.nombre} - {r.cantidad} {r.materiasPrimas?.unidad}
-                </li>
-              ))}
-            </ul>
-          )}
+          <button
+            className="mclose"
+            onClick={onClose}
+          >
+            ×
+          </button>
         </div>
 
-        <hr style={{ margin: "12px 0" }} />
-
-        {/* FORM */}
-        <div>
-          <h4>Agregar ingredientes</h4>
-          <br />
+        <div className="mbody">
+          <div className="recipe-header">
+            <span>Materia Prima</span>
+            <span>Cantidad</span>
+            <span></span>
+          </div>
 
           {itemsReceta.map((item, index) => (
-            <div className="form-2" key={index}>
+            <div
+              key={index}
+              className="recipe-row"
+            >
+              <select
+              className="fselect" 
+              value={item.materiaPrimaId}
+              onChange={(e) =>
+                updateItem(
+                  index,
+                  "materiaPrimaId",
+                  e.target.value
+                )
+              }
+            >
+              <option value="">
+                Selecciona...
+              </option>
 
-              {/* SELECT */}
-              <div>
-                <label className="form-lbl">Materia Prima</label>
-                <select
-                  className="fselect"
-                  value={item.materiaPrimaId}
-                  onChange={(e) =>
-                    updateItem(index, "materiaPrimaId", e.target.value)
-                  }
+              {materiasPrimas.map((mp) => (
+                <option
+                  key={mp.id}
+                  value={mp.id}
                 >
-                  <option value="">Selecciona...</option>
-                  {materiasPrimas.map((mp) => (
-                    <option
-                      key={mp.idMateriaPrima || mp.id}
-                      value={mp.idMateriaPrima || mp.id}
-                    >
-                      {mp.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  {mp.nombre}
+                </option>
+              ))}
+            </select>
 
-              {/* CANTIDAD */}
-              <div>
-                <label className="form-lbl">Cantidad</label>
-                <input
-                  className="finput"
-                  type="number"
-                  value={item.cantidad}
-                  onChange={(e) =>
-                    updateItem(index, "cantidad", e.target.value)
-                  }
-                />
-              </div>
-
-              {/* BOTONES */}
-              <button
-                type="button"
-                className="act-btn"
-                onClick={addItem}
-              >
-                +
-              </button>
+              <input
+                type="number"
+                min="0"
+                className="finput"
+                value={item.cantidad}
+                onChange={(e) =>
+                  updateItem(
+                    index,
+                    "cantidad",
+                    e.target.value
+                  )
+                }
+              />
 
               <button
                 type="button"
-                className="act-btn"
-                onClick={() => removeItem(index)}
+                className="recipe-delete"
+                onClick={() =>
+                  removeItem(index)
+                }
               >
-                −
+                🗑
               </button>
-
             </div>
           ))}
+
+          <button
+            type="button"
+            className="recipe-add"
+            onClick={addItem}
+          >
+            + Agregar ingrediente
+          </button>
         </div>
 
+        <div className="mfooter">
+          <button
+            className="mf-cancel"
+            onClick={onClose}
+          >
+            Cancelar
+          </button>
+
+          <button
+            className="mf-save"
+            onClick={saveReceta}
+          >
+            Guardar receta
+          </button>
+        </div>
       </div>
-
-      {/* FOOTER */}
-      <div className="mfooter">
-        <button className="mf-cancel" onClick={onClose}>
-          Cancelar
-        </button>
-
-        <button className="mf-save" onClick={saveReceta}>
-          Guardar receta
-        </button>
-      </div>
-
-    </div>
     </div>
   );
 }

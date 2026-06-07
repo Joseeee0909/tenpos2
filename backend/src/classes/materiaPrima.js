@@ -42,15 +42,22 @@ class MateriaPrima {
   static async obtenerPorId(idMateriaPrima, empresaId) {
     return await prisma.MateriaPrima.findFirst({
       where: {
-        idMateriaPrima,
+      empresaId_idMateriaPrima: {
         empresaId,
-      },
+        idMateriaPrima
+      }
+    },
     });
   }
 
   static async eliminarPorId(idMateriaPrima, empresaId) {
     return await prisma.MateriaPrima.update({
-      where: { idMateriaPrima, empresaId },
+      where: {
+      empresaId_idMateriaPrima: {
+        empresaId,
+        idMateriaPrima
+      }
+    },
       data: {
         disponible: false,
       },
@@ -58,10 +65,15 @@ class MateriaPrima {
   }
 
   static async actualizarPorId(idMateriaPrima, empresaId, datosActualizados) {
-    return await prisma.MateriaPrima.update({
-      where: { idMateriaPrima, empresaId },
-      data: datosActualizados,
-    });
+  return await prisma.materiaPrima.update({
+    where: {
+      empresaId_idMateriaPrima: {
+        empresaId,
+        idMateriaPrima
+      }
+    },
+    data: datosActualizados,
+  });
   }
 }
 

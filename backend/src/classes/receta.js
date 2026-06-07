@@ -23,6 +23,37 @@ import prisma from "../lib/prisma.js";
         },
         });
     }
+    static async reemplazarReceta(
+        empresaId,
+        productoId,
+        ingredientes
+    ) {
+
+        await prisma.receta.deleteMany({
+            where: {
+                empresaId,
+                productoId
+            }
+        });
+
+        const recetasGuardadas = [];
+
+        for (const ingrediente of ingredientes) {
+
+            const receta = await prisma.receta.create({
+                data: {
+                    empresaId,
+                    productoId,
+                    materiaPrimaId: ingrediente.materiaPrimaId,
+                    cantidad: Number(ingrediente.cantidad)
+                }
+            });
+
+            recetasGuardadas.push(receta);
+        }
+
+        return recetasGuardadas;
+    }
 
     static async obtenerPorProducto(empresaId, productoId) {
         return await prisma.receta.findMany({
@@ -38,10 +69,12 @@ import prisma from "../lib/prisma.js";
     static async eliminarReceta(empresaId, productoId, materiaPrimaId) {
         return await prisma.receta.delete({
         where: {
-            empresaId,
-            productoId,
-            materiaPrimaId,
-        },
+        productoId_materiaPrimaId_empresaId: {
+        productoId,
+        materiaPrimaId,
+        empresaId
+        }
+    },
         });
     }
     static async actualizarReceta(
@@ -52,9 +85,11 @@ import prisma from "../lib/prisma.js";
     ) {
         return await prisma.receta.update({
         where: {
-            empresaId,
+            productoId_materiaPrimaId_empresaId: {
             productoId,
             materiaPrimaId,
+            empresaId
+          }
         },
         data: {
             cantidad: nuevaCantidad,
@@ -64,9 +99,12 @@ import prisma from "../lib/prisma.js";
     static async eliminarRecetasPorProducto(empresaId, productoId) {
         return await prisma.receta.deleteMany({
         where: {
-            empresaId,
-            productoId,
-        },
+        productoId_materiaPrimaId_empresaId: {
+        productoId,
+        materiaPrimaId,
+        empresaId
+        }
+    },
         });
     }
     }

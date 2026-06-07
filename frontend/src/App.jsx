@@ -11,6 +11,7 @@ import RolesPage from './pages/roles.jsx';
 import UserPage from './pages/user.jsx';
 import Register from './pages/register.jsx';
 import CheckoutPage from './pages/checkout.jsx';
+import InventarioPage from './pages/Inventario.jsx';
 
 import ReportesPage from './pages/ReportsTab.jsx';
 import SessionPage from './pages/SessionsTab.jsx';
@@ -125,6 +126,15 @@ function RoutesWrapper() {
             </ProtectedRoute>
           )}
         />
+        <Route
+          path="/inventario"
+          element={(
+            <ProtectedRoute allowedPermissions={['ver_inventario', 'gestionar_inventario']}>
+              <InventarioPage />
+            </ProtectedRoute>
+          )}
+        />
+
         <Route path="/checkout" element={<CheckoutPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/inicio" replace />} />

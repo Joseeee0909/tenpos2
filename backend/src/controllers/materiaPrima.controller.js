@@ -76,7 +76,7 @@ class MateriaPrimaController {
     try {
       const { idMateriaPrima } = req.params;
       const disponible = toBoolean(req.body?.disponible, false);
-      const updatedMateriaPrima = await materiaPrima.actualizarPorId(
+      const updatedMateriaPrima = await MateriaPrima.actualizarPorId(
         idMateriaPrima,
         req.user.empresaId,
         { disponible },
@@ -117,9 +117,9 @@ class MateriaPrimaController {
       const nombre = toTrimmedString(payload.nombre);
       const categoria = toTrimmedString(payload.categoria);
       const stock = toNumber(payload.stock);
-      const disponible = toBoolean(payload.disponible);
+      const disponible = toBoolean(payload.disponible) || true;
       const unidad = toTrimmedString(payload.unidad);
-      const updatedMateriaPrima = await materiaPrima.actualizarPorId(
+      const updatedMateriaPrima = await MateriaPrima.actualizarPorId(
         idMateriaPrima,
         req.user.empresaId,
         { nombre, categoria, stock, disponible, unidad },

@@ -17,23 +17,42 @@ class RecetaController {
     }
     static async crearReceta(req, res) {
         try {
-            const payload = pickFields(req.body, RECETA_FIELDS);
-            const productoId = payload.productoId;
-            const materiaPrimaId = payload.materiaPrimaId;
-            const cantidad = toNumber(payload.cantidad, NaN);
+            const { productoId, ingredientes } = req.body;
 
-            if (!productoId || !materiaPrimaId || !Number.isFinite(cantidad)) {
-                return res.status(400).json({ mensaje: 'Faltan datos requeridos o cantidad no es un número válido: productoId, materiaPrimaId, cantidad' });
+            if (!productoId || !ingredientes?.length) {
+            return res.status(400).json({
+                mensaje: "Producto e ingredientes son obligatorios"
+            });
             }
-            const receta = new Receta(req.user.empresaId, productoId, materiaPrimaId, cantidad);
-            const savedReceta = await receta.guardar();
-            res.status(201).json({ mensaje: 'Receta creada', receta: savedReceta });
+
+            const recetasGuardadas = [];
+
+            for (const ingrediente of ingredientes) {
+
+            const receta = new Receta(
+                req.user.empresaId,
+                productoId,
+                ingrediente.materiaPrimaId,
+                Number(ingrediente.cantidad)
+            );
+
+            recetasGuardadas.push(
+                await receta.guardar()
+            );
+            }
+
+            return res.status(201).json({
+            mensaje: "Receta creada",
+            recetas: recetasGuardadas
+            });
+
+        } catch (err) {
+            console.error(err);
+            return res.status(500).json({
+            error: err.message
+            });
         }
-        catch (err) {
-            console.error('Error creando receta:', err);
-            res.status(500).json({ error: err.message });
         }
-    }
     static async eliminarReceta(req, res) {
         try {
             const { productoId, materiaPrimaId } = req.params;
@@ -43,6 +62,30 @@ class RecetaController {
         catch (err) {
             console.error('Error eliminando receta:', err);
             res.status(500).json({ error: err.message });
+        }
+    }
+    static async reemplazarReceta(req, res) {
+        try {
+            const { productoId } = req.params;
+            const { ingredientes } = req.body;
+
+            const recetas = await Receta.reemplazarReceta(
+                req.user.empresaId,
+                productoId,
+                ingredientes
+            );
+
+            return res.status(200).json({
+                mensaje: "Receta actualizada",
+                recetas
+            });
+
+        } catch (err) {
+            console.error(err);
+
+            return res.status(500).json({
+                error: err.message
+            });
         }
     }
     static async actualizarReceta(req, res) {

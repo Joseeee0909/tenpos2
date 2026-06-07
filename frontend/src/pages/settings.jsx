@@ -17,13 +17,16 @@ const FACTURACION_DEFAULTS = {
 
 const MENU_ORDER_ITEMS = [
   { id: 'inicio', label: 'Inicio' },
+  { id: 'inventario', label: 'Inventario' },
   { id: 'productos', label: 'Productos' },
   { id: 'pedidos', label: 'Pedidos' },
   { id: 'ventas', label: 'Ventas' },
   { id: 'mesas', label: 'Mesas' },
   { id: 'roles', label: 'Roles' },
   { id: 'usuarios', label: 'Usuarios' },
-  { id: 'config', label: 'Configuracion' }
+  { id: 'config', label: 'Configuracion' },
+  { id: 'utilidades', label: 'Utilidades' }
+
 ];
 
 const NAV_ITEMS = [

@@ -25,8 +25,8 @@ const ALL_PERMS = [
 
   { id: 'ver_reportes', label: 'Ver reportes', desc: 'Consultar reportes de ventas y productos' },
   
-  { id: 'ver_materias_primas', label: 'Ver materias primas', desc: 'Consultar catalogo de materias primas' },
-  { id: 'gestionar_materias_primas', label: 'Gestionar materias primas', desc: 'Crear, editar y desactivar materias primas' },
+  { id: 'ver_inventario', label: 'Ver inventario', desc: 'Consultar catalogo de inventario' },
+  { id: 'gestionar_inventario', label: 'Gestionar inventario', desc: 'Crear, editar y desactivar items en inventario' },
 
   { id: 'ver_recetas', label: 'Ver recetas', desc: 'Consultar recetas de productos' },
   { id: 'gestionar_recetas', label: 'Gestionar recetas', desc: 'Crear, editar y eliminar recetas' }
