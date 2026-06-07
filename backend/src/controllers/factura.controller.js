@@ -168,9 +168,11 @@ export const saveConfig = async (req, res) => {
 };
 
 export const generateCUFE = (factura) => {
-  // Placeholder: generate CUFE string from factura data when DIAN integration is activated.
-  // Should use prefijo, numero, fecha, totals and digitial signature schema in future.
-  return null;
+  const prefijo = asString(factura?.prefijo, 'POS');
+  const numero = asString(factura?.numero, '0');
+  const total = asNumber(factura?.total, 0);
+  const fecha = asString(factura?.fecha, new Date().toISOString());
+  return `CUDE-${prefijo}-${numero}-${total}-${fecha.slice(0, 10)}`;
 };
 
 export const generateUBLXML = (factura) => {
@@ -226,6 +228,8 @@ export const checkoutPedido = async (req, res) => {
     const totals = computeInvoiceTotals(facturaItems, propinaBase);
     const total = totals.total;
     const metodoPagoLabel = formatPaymentMethod(metodoPago);
+    const montoRecibido = toNumber(req.body?.montoRecibido, total);
+    const cambio = Math.max(0, toNumber(req.body?.cambio, 0));
 
     const factura = await prisma.$transaction(async (tx) => {
       if (String(pedido.estado || '').toLowerCase() !== 'entregado') {
@@ -280,23 +284,39 @@ export const checkoutPedido = async (req, res) => {
     const dir = path.join(process.cwd(), 'storage', 'facturas');
     ensureDir(dir);
     const filePath = path.join(dir, `${numero}.pdf`);
-    const pdfBuffer = await buildInvoicePdfBuffer({
-      title: 'FACTURA',
-      prefijo,
-      numero,
-      emisor,
-      cliente: clienteData,
-      items: facturaItems,
-      totals,
-      propina: propinaBase,
-      descuento: totals.descuento,
-      metodoPago: metodoPagoLabel,
-      estado: formatInvoiceState('GENERADA'),
-      cufe: null,
-      dianStatus: null,
-      fecha: new Date().toISOString(),
-      taxSettings: getTaxSettingsSummary(configDoc)
-    });
+    const seqMatch = numero.match(/-(\d+)$/);
+    const seqNum = seqMatch ? seqMatch[1] : '01';
+
+    const pdfBuffer = await buildInvoicePdfBuffer(
+      {
+        title: 'FACTURA',
+        prefijo,
+        numero,
+        emisor,
+        cliente: clienteData,
+        items: facturaItems,
+        totals,
+        propina: propinaBase,
+        descuento: totals.descuento,
+        metodoPago: metodoPagoLabel,
+        montoRecibido,
+        cambio,
+        mesa: pedido.mesa?.numero ?? null,
+        caja: `caja ${pedido.mesa?.numero ?? 1}`,
+        cajaRef: `${String(pedido.mesa?.numero ?? '1').padStart(6, '0')} - ${String(seqNum).slice(-2).padStart(2, '0')}`,
+        vendedor:
+          pedido.mesero?.nombre ||
+          pedido.mesero?.username ||
+          pedido.responsable ||
+          emisor.razonSocial,
+        estado: formatInvoiceState('GENERADA'),
+        cufe: generateCUFE({ prefijo, numero, total, fecha: new Date().toISOString() }),
+        dianStatus: null,
+        fecha: new Date().toISOString(),
+        taxSettings: getTaxSettingsSummary(configDoc)
+      },
+      { pageSize: '80mm' }
+    );
     fs.writeFileSync(filePath, pdfBuffer);
 
     const updated = await prisma.factura.update({
@@ -329,7 +349,7 @@ export const previewFactura = async (req, res) => {
       },
       include: {
         mesa: true,
-        productos: true
+        productos: { include: { producto: true } }
       }
     });
 
@@ -345,25 +365,36 @@ export const previewFactura = async (req, res) => {
     const propina = incluirPropina ? Number((facturaItems.reduce((sum, line) => sum + line.subtotal, 0) * (propinaPercent / 100)).toFixed(2)) : 0;
     const totals = computeInvoiceTotals(facturaItems, propina);
 
-    const pdfBuffer = await buildInvoicePdfBuffer({
-      title: 'PRECUENTA',
-      prefijo,
-      numero,
-      emisor,
-      cliente: null,
-      mesa: pedido.mesa?.numero || '-',
-      pedidoId: pedido.id,
-      items: facturaItems,
-      totals,
-      propina,
-      descuento: totals.descuento,
-      metodoPago: formatPaymentMethod(req.query.metodoPago || 'Efectivo'),
-      estado: formatInvoiceState('BORRADOR'),
-      cufe: null,
-      dianStatus: null,
-      fecha: new Date().toISOString(),
-      taxSettings: getTaxSettingsSummary(configDoc)
-    });
+    const seqMatch = numero.match(/-(\d+)$/);
+    const seqNum = seqMatch ? seqMatch[1] : '01';
+
+    const pdfBuffer = await buildInvoicePdfBuffer(
+      {
+        title: 'PRECUENTA',
+        prefijo,
+        numero,
+        emisor,
+        cliente: buildClientePayload(null),
+        mesa: pedido.mesa?.numero ?? null,
+        caja: `caja ${pedido.mesa?.numero ?? 1}`,
+        cajaRef: `${String(pedido.mesa?.numero ?? '1').padStart(6, '0')} - ${String(seqNum).slice(-2).padStart(2, '0')}`,
+        vendedor: emisor.razonSocial,
+        pedidoId: pedido.id,
+        items: facturaItems,
+        totals,
+        propina,
+        descuento: totals.descuento,
+        metodoPago: formatPaymentMethod(req.query.metodoPago || 'Efectivo'),
+        montoRecibido: totals.total,
+        cambio: 0,
+        estado: formatInvoiceState('BORRADOR'),
+        cufe: generateCUFE({ prefijo, numero, total: totals.total, fecha: new Date().toISOString() }),
+        dianStatus: null,
+        fecha: new Date().toISOString(),
+        taxSettings: getTaxSettingsSummary(configDoc)
+      },
+      { pageSize: '80mm' }
+    );
 
     res.setHeader('Content-Type', 'application/pdf');
     res.send(pdfBuffer);

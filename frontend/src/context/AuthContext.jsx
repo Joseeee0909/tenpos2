@@ -47,6 +47,8 @@ export function AuthProvider({ children }) {
     let mounted = true;
     const refreshPerms = async () => {
       if (!token || !user?.rol) return;
+      const currentPerms = Array.isArray(user?.permisos) ? user.permisos : [];
+      if (currentPerms.length > 0) return;
       try {
         const roles = await authService.getRoles();
         const match = Array.isArray(roles)
@@ -62,9 +64,11 @@ export function AuthProvider({ children }) {
       }
     };
 
-    const handleFocus = () => refreshPerms();
+    const handleFocus = () => {
+      if (document.visibilityState && document.visibilityState !== 'visible') return;
+      refreshPerms();
+    };
 
-    refreshPerms();
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleFocus);
 

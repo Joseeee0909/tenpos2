@@ -93,6 +93,7 @@ model Product {
   @@unique([empresaId, idproducto])
   @@index([empresaId, categoria])
   @@index([empresaId, disponible])
+  @@index([empresaId])
 }
 
 model MateriaPrima {

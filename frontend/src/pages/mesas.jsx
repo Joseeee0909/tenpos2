@@ -2,11 +2,10 @@ import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/api';
 import PageHeader from '../components/PageHeader';
+import { toCurrency, formatClock } from '../utils/format';
 import '../styles/mesas.css';
 
 const ACTIVE_ORDER_STATES = new Set(['pendiente', 'preparando', 'listo']);
-
-const formatCurrency = (value) => `$${Math.round(Number(value || 0)).toLocaleString('es-CO')}`;
 
 const getOrderTotal = (pedido) => {
   if (!pedido) return 0;
@@ -19,15 +18,17 @@ const getOrderTotal = (pedido) => {
   }, 0);
 };
 
-const formatClock = (value) => {
-  const date = new Date(value || Date.now());
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+const mapPedidoFromMesa = (pedido, mesaNumero) => {
+  if (!pedido) return null;
+  return {
+    ...pedido,
+    mesa: pedido.mesa ?? mesaNumero
+  };
 };
 
 export default function MesasPage() {
   const navigate = useNavigate();
   const [mesas, setMesas] = useState([]);
-  const [pedidos, setPedidos] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingMesa, setEditingMesa] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -63,16 +64,11 @@ export default function MesasPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [mesasData, pedidosData] = await Promise.all([
-        authService.getMesas(),
-        authService.getPedidos()
-      ]);
+      const mesasData = await authService.getMesas();
       setMesas(Array.isArray(mesasData) ? mesasData : []);
-      setPedidos(Array.isArray(pedidosData) ? pedidosData : []);
     } catch (err) {
-      console.error('Error fetching mesas/pedidos:', err);
+      console.error('Error fetching mesas:', err);
       setMesas([]);
-      setPedidos([]);
     } finally {
       setLoading(false);
     }
@@ -108,19 +104,18 @@ export default function MesasPage() {
   };
 
   const activePedidoByMesa = useMemo(() => {
-    const ordered = [...pedidos]
-      .filter((p) => ACTIVE_ORDER_STATES.has(String(p?.estado || '').toLowerCase()))
-      .sort((a, b) => new Date(b?.fecha || 0).getTime() - new Date(a?.fecha || 0).getTime());
-
     const map = new Map();
-    for (const pedido of ordered) {
-      const mesaNumero = Number(pedido?.mesa);
-      if (!Number.isNaN(mesaNumero) && !map.has(mesaNumero)) {
-        map.set(mesaNumero, pedido);
+    for (const mesa of mesas) {
+      const pedido = mapPedidoFromMesa(mesa.pedido || mesa.pedidos?.[0], mesa.numero);
+      if (
+        pedido &&
+        ACTIVE_ORDER_STATES.has(String(pedido.estado || '').toLowerCase())
+      ) {
+        map.set(Number(mesa.numero), pedido);
       }
     }
     return map;
-  }, [pedidos]);
+  }, [mesas]);
 
   const mesasUi = useMemo(() => {
     return mesas.map((mesa) => {
@@ -316,7 +311,6 @@ export default function MesasPage() {
             await authService.actualizarPedido(activeOrder.id, { estado: 'entregado' });
           }
 
-          await authService.actualizarMesa(mesaTarget.id, { estado: 'disponible', pedido: null });
           await fetchData();
           closeActionMesa();
           pushNotice('Pago registrado. La mesa ya esta disponible.', 'success');
@@ -602,7 +596,7 @@ export default function MesasPage() {
               <div className="mesa-quick-badge"><span className="badge-dot"></span>Ocupada</div>
               <div className="mesa-quick-title">Mesa {actionMesa.mesa.numero}</div>
               <div className="mesa-quick-sub">
-                Pedido activo · {(actionMesa.pedido?.productos || []).reduce((sum, p) => sum + Number(p?.cantidad || 0), 0)} items · {formatCurrency(getOrderTotal(actionMesa.pedido))}
+                Pedido activo · {(actionMesa.pedido?.productos || []).reduce((sum, p) => sum + Number(p?.cantidad || 0), 0)} items · {toCurrency(getOrderTotal(actionMesa.pedido))}
               </div>
               <div className="mesa-quick-meta">
                 <div className="mesa-meta-chip">

@@ -3,40 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import authService from '../services/api';
 import { UxToast } from '../components/UXFeedback';
 import { getStoredSettings } from '../utils/settings';
+import { toCurrency } from '../utils/format';
+import { buildTotals, readTaxSettings } from '../utils/tax';
 import '../styles/checkout.css';
-
-const ACTIVE_STATES = new Set(['pendiente', 'preparando', 'listo', 'entregado']);
-
-const toCurrency = (value) =>
-  `$${Math.round(Number(value || 0)).toLocaleString('es-CO')}`;
-
-const buildTotals = (sum, taxSettings) => {
-  const base = Math.round(Number(sum || 0));
-  const vatRate = taxSettings.applyVat ? taxSettings.vatPercent / 100 : 0;
-
-  if (!vatRate) return { subtotal: base, tax: 0, total: base };
-
-  if (taxSettings.pricesIncludeVat) {
-    const subtotal = Math.round(base / (1 + vatRate));
-    let tax = Math.round(subtotal * vatRate);
-    const correction = base - (subtotal + tax);
-    if (correction !== 0) tax += correction;
-    return { subtotal, tax, total: base };
-  }
-
-  const subtotal = base;
-  const tax = Math.round(subtotal * vatRate);
-  return { subtotal, tax, total: subtotal + tax };
-};
-
-const readTaxSettings = () => {
-  const stored = getStoredSettings();
-  return {
-    vatPercent: Number(stored.vatPercent ?? 19),
-    applyVat: stored.applyVat !== false,
-    pricesIncludeVat: stored.pricesIncludeVat !== false
-  };
-};
 
 const getCurrentUserId = () => {
   try {
@@ -100,20 +69,8 @@ export default function CheckoutPage() {
 
   const loadPedido = async () => {
     try {
-      const data = await authService.getPedidos();
-      const pedidos = Array.isArray(data) ? data : [];
-
-      const candidates = pedidos
-        .filter((p) => Number(p.mesa) === mesaNumero)
-        .filter((p) =>
-          ACTIVE_STATES.has(String(p.estado || '').toLowerCase())
-        )
-        .sort(
-          (a, b) =>
-            new Date(b.fecha || 0) - new Date(a.fecha || 0)
-        );
-
-      setPedido(candidates[0] || null);
+      const pedido = await authService.getPedidoActivoMesa(mesaNumero);
+      setPedido(pedido);
     } catch (e) {
       pushNotice('Error cargando pedido', 'error');
     } finally {
@@ -220,7 +177,12 @@ const closeModal = (key) => {
         incluirPropina: includeTip,
         propinaPercent: tipPercent,
         taxSettings,
-        mesero: getCurrentUserId()
+        mesero: getCurrentUserId(),
+        montoRecibido:
+          paymentMethod === 'cash'
+            ? Math.round(Number(amountReceived) || grandTotal)
+            : grandTotal,
+        cambio: paymentMethod === 'cash' ? change : 0
       });
 
       setModals((p) => ({ ...p, success: true }));

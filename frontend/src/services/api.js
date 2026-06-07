@@ -174,9 +174,19 @@ const inicializarMesas = async () => {
 /* ---------------------------------------------------
    🔹 PEDIDOS
 --------------------------------------------------- */
-const getPedidos = async () => {
-  const res = await api.get("/pedidos");
+const getPedidos = async (params) => {
+  const res = await api.get("/pedidos", { params });
   return res.data;
+};
+
+const getPedidosContext = async () => {
+  const res = await api.get("/pedidos/context");
+  return res.data;
+};
+
+const getPedidoActivoMesa = async (mesa) => {
+  const data = await getPedidos({ mesa, limit: 1 });
+  return Array.isArray(data) ? data[0] || null : null;
 };
 
 const getPedido = async (id) => {
@@ -351,6 +361,8 @@ export default {
   eliminarMesa,
   inicializarMesas,
   getPedidos,
+  getPedidosContext,
+  getPedidoActivoMesa,
   getPedido,
   crearPedido,
   actualizarPedido,

@@ -69,11 +69,13 @@ export const buildEmisorFromConfig = (config = {}) => {
   const { nit, dv } = parseNitValue(config?.nit || '800200100-0');
   return {
     razonSocial: config?.nombre || 'SIIGO S.A.S',
+    nombre: config?.nombre || 'SIIGO S.A.S',
     nit: nit || '800200100',
     dv: dv || '0',
     direccion: config?.direccion || 'Cali, Colombia',
     telefono: config?.telefono || '3001234567',
     email: config?.email || 'empresa@email.com',
+    responsable: asString(config?.responsable, 'Responsable de IVA'),
     resolucion: asString(config?.resolucion, ''),
     rangoAutorizado: asString(config?.autorizada, '')
   };
