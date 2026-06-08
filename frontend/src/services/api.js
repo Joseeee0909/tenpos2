@@ -137,6 +137,17 @@ const getTotalUsers = async () => {
   // Si tu backend devuelve un array directamente
   return Array.isArray(res.data) ? res.data.length : (res.data.usuarios?.length || 0);
 };
+/* ---------------------------------------------------
+   🔹 AIAnalytics
+--------------------------------------------------- */
+const getAIAnalytics = async (params) => {
+  const res = await api.get("/ia/inventario-analisis");
+  return res.data;
+}
+ const applyAIRecommendations = async (recommendationsData) => {
+  const res = await api.post("/ai/analytics/apply", recommendationsData);
+  return res.data;
+};
 
 /* ---------------------------------------------------
    🔹 MESAS
@@ -385,5 +396,8 @@ export default {
   getInventario,
   crearInventario,
   actualizarInventario,
-  eliminarInventario
+  eliminarInventario,
+  getAIAnalytics,
+  applyAIRecommendations,
+  toggleDisponibilidadInventario
 };

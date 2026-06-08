@@ -13,7 +13,7 @@ class IaAnalyticsController {
         });
       }
 
-      const analisis = await IaAnalyticsService.generarAnalisisPredictivo(empresaId);
+      const analisis = await IaAnalyticsService.generarAnalisisMateriaPrima(empresaId);
       
       return res.status(200).json({
         success: true,

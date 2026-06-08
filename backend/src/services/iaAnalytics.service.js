@@ -1,19 +1,28 @@
 import { PrismaClient } from '@prisma/client';
-import { GoogleGenAI } from '@google/genai'; // SDK oficial actualizado
+import Groq from 'groq-sdk'; // 🌟 Cambiado al SDK oficial de Groq
+import path from 'path';
+import dotenv from 'dotenv';
+
+// Aseguramos que cargue el .env buscando la ruta exacta de la raíz
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const prisma = new PrismaClient();
-// Inicializa Gemini usando la variable de entorno
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// Reglas de durabilidad basadas en tus categorías reales de MateriaPrima
+// Inicializa Groq con la variable de entorno que vas a agregar en tu .env
+// Dejamos un respaldo por si quieres meter tu "gsk_..." directamente aquí para probar
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY || "TU_KEY_DE_GROQ_AQUÍ"
+});
+
+// Reglas de durabilidad basadas en tus categorías reales de MateriaPrima (MANTENIDAS)
 const REGLAS_CADUCIDAD_MP = {
   "Proteina": { diasMaxBodega: 3, tipo: "Altamente Perecedero" },
   "Lacteos": { diasMaxBodega: 7, tipo: "Perecedero" },
   "Verduras": { diasMaxBodega: 5, tipo: "Perecedero" },
   "Frutas": { diasMaxBodega: 6, tipo: "Perecedero" },
-  "Abarrotes": { diasMaxBodega: 90, tipo: "No Perecedero" },   // Arroz, sal, etc.
-  "Insumos": { diasMaxBodega: 180, tipo: "No Perecedero" },   // Empaques, servilletas
-  "Limpieza": { diasMaxBodega: 365, tipo: "No Perecedero" },  // Jabón, desinfectantes
+  "Abarrotes": { diasMaxBodega: 90, tipo: "No Perecedero" },
+  "Insumos": { diasMaxBodega: 180, tipo: "No Perecedero" },
+  "Limpieza": { diasMaxBodega: 365, tipo: "No Perecedero" },
   "Otro": { diasMaxBodega: 30, tipo: "General" }
 };
 
@@ -32,18 +41,16 @@ class IaAnalyticsService {
     });
 
     // 2. Mapear consumo de Materia Prima multiplicando platos vendidos por su Receta
-    const consumosMateriaPrimaDia = {}; // { [materiaPrimaId]: consumoDiarioPromedio }
+    const consumosMateriaPrimaDia = {}; 
 
     for (const venta of ventasProductos) {
       if (!venta.productoId) continue;
       const cantidadPlatosVendidos = venta._sum.cantidad || 0;
 
-      // Buscar los ingredientes de este plato
       const recetas = await prisma.receta.findMany({
         where: { productoId: venta.productoId, empresaId }
       });
 
-      // Calcular el gasto total de cada ingrediente
       recetas.forEach(receta => {
         const totalIngredienteUsado = Number(receta.cantidad) * cantidadPlatosVendidos;
         const promedioDiario = totalIngredienteUsado / 7;
@@ -70,12 +77,9 @@ class IaAnalyticsService {
       const promedioDiario = consumosMateriaPrimaDia[mp.id] || 0;
       const stockActual = mp.stock;
 
-      // Buscar la regla usando tus categorías exactas. Si no existe, cae en "Otro"
       const regla = REGLAS_CADUCIDAD_MP[mp.categoria] || REGLAS_CADUCIDAD_MP["Otro"];
-
       let diasParaAgotar = promedioDiario > 0 ? stockActual / promedioDiario : 999;
 
-      // Lógica de alertas por desabastecimiento (Stock Crítico / Bajo)
       if (promedioDiario > 0 && diasParaAgotar <= 2) criticos++;
       else if (promedioDiario > 0 && diasParaAgotar <= 5) bajo++;
       else normal++;
@@ -86,15 +90,13 @@ class IaAnalyticsService {
 
       if (promedioDiario > 0 && diasParaAgotar > regla.diasMaxBodega) {
         if (regla.tipo === "Altamente Perecedero" || regla.tipo === "Perecedero") {
-          // Alerta de descomposición física para Proteina, Lacteos, Verduras, Frutas
           enRiesgoDeVencer = true;
           const consumoEstimadoVidaUtil = promedioDiario * regla.diasMaxBodega;
           cantidadEnRiesgo = Math.max(0, Math.ceil(stockActual - consumoEstimadoVidaUtil));
           motivoAlerta = `Riesgo de descomposición: Se proyecta perder ${cantidadEnRiesgo} ${mp.unidad} antes de vencer.`;
         } else if (diasParaAgotar > 120) {
-          // Alerta de Capital Estancado para Abarrotes, Insumos, Limpieza
           enRiesgoDeVencer = true; 
-          cantidadEnRiesgo = Math.ceil(stockActual - (promedioDiario * 30)); // Exceso sobre un mes de uso
+          cantidadEnRiesgo = Math.ceil(stockActual - (promedioDiario * 30)); 
           motivoAlerta = `Sobreabastecimiento crítico: Tienes stock de ${mp.categoria.toLowerCase()} para más de 4 meses. Capital retenido.`;
         }
       }
@@ -117,7 +119,7 @@ class IaAnalyticsService {
       }
     });
 
-    // --- 5. LA IA (GEMINI) PROCESA LOS INGREDIENTES EN RIESGO ---
+    // --- 5. LA IA (GROQ) PROCESA LOS INGREDIENTES EN RIESGO ---
     let analiticaIA = "No hay suficientes datos de materias primas para procesar con inteligencia artificial.";
 
     if (materiasAnalizadas.length > 0) {
@@ -137,21 +139,33 @@ class IaAnalyticsService {
           3. [ABARROTES] Evalúa si ingredientes de larga duración (como el arroz o licores) están sobre-estoqueados innecesariamente restando liquidez al negocio.
         `;
 
-        // CORRECCIÓN AQUÍ: Sintaxis oficial adaptada para @google/genai
-        const response = await ai.models.generateContent({
-          model: 'gemini-1.5-flash',
-          contents: prompt,
+        // 🌟 LLAMADA ADAPTADA AL SDK DE GROQ (Ultra estable)
+        const chatCompletion = await groq.chat.completions.create({
+          messages: [
+            {
+              role: 'system',
+              content: 'Eres un analista gastronómico senior experto en control de mermas e inventarios para restaurantes de alta rotación.'
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          model: 'llama-3.3-70b-versatile', // El mejor modelo gratuito de Groq
+          temperature: 0.3,
         });
 
-        // Extraemos el texto de la respuesta de Gemini
-        analiticaIA = response.text;
+        // 🌟 Extracción correcta del texto de la respuesta de Groq
+        analiticaIA = chatCompletion.choices[0]?.message?.content || "No se pudo generar el texto de análisis.";
+
       } catch (error) {
-        console.error("Gemini AI Error:", error);
-        analiticaIA = "Cálculo analítico finalizado matemáticamente. Se sugiere revisar manualmente el inventario de proteínas en el módulo físico.";
+        console.error("Groq AI Error:", error);
+        // Texto de contingencia modificado para el fallback
+        analiticaIA = "Cálculo analítico finalizado matemáticamente por el servidor. Revisa las pestañas de stock y mermas para ver los valores calculados de forma local.";
       }
     }
 
-    // 6. Respuesta limpia para el Frontend
+    // 6. Respuesta limpia para el Frontend (MANTENIDA EXACTAMENTE IGUAL)
     return {
       resumen_cards: {
         productos_activos: materiasPrimas.length, 
