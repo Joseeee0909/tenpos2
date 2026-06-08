@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import authService from '../services/api';
 import PageHeader from '../components/PageHeader';
 import { UxToast } from '../components/UXFeedback';
-import RecetaModal from '../components/RecetaModal';
 import { getStoredSettings } from '../utils/settings';
+import AIInventoryModal from '../components/AIInventoryModal';
 import '../styles/inventario.css';
 
 const CATEGORIES = ['Proteina', 'Lacteos', 'Abarrotes', 'Frutas', 'Verduras', 'Insumos', 'Limpieza', 'Otro'];
@@ -46,6 +46,7 @@ export default function InventarioPage() {
   const [lowStockNoticeKey, setLowStockNoticeKey] = useState('');
   const [materiasPrimas, setMateriasPrimas] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
   const [currentFilter, setCurrentFilter] = useState('all');
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const [sortBy, setSortBy] = useState('name_asc');
@@ -56,11 +57,11 @@ export default function InventarioPage() {
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
-      nombre: '',
-      categoria: 'Proteina',
-      stock: '',
-      unidad: 'Unidad',
-      idMateriaPrima: ''
+    nombre: '',
+    categoria: 'Proteina',
+    stock: '',
+    unidad: 'Unidad',
+    idMateriaPrima: ''
   });
 
   const [toggleOpen, setToggleOpen] = useState(false);
@@ -296,106 +297,117 @@ export default function InventarioPage() {
           </svg>
         )}
         actions={(
-          <button className="btn-solid" type="button" onClick={openNew}>
-            <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="white" strokeWidth="2.2" strokeLinecap="round"/></svg>
-            Nueva materia prima
-          </button>
+          <>
+            <button className="btn-solid" type="button" onClick={() => setIsOpen(true)}>
+              <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="white" strokeWidth="2.2" strokeLinecap="round" /></svg>
+              Predicciones de IA
+            </button>
+            <AIInventoryModal
+              isOpen={isOpen}
+              onClose={() => setIsOpen(false)}
+            />
+            <button className="btn-solid" type="button" onClick={openNew}>
+              <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="white" strokeWidth="2.2" strokeLinecap="round" /></svg>
+              Nueva materia prima
+            </button>
+          </>
         )}
+
       />
 
       <div className="stats-row">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: '#eef2ff' }}><svg viewBox="0 0 16 16" fill="none" stroke="#4f46e5" strokeWidth="1.6"><path d="M3 3h10v2l-2 3v5H5V8L3 5z"/></svg></div>
+          <div className="stat-icon" style={{ background: '#eef2ff' }}><svg viewBox="0 0 16 16" fill="none" stroke="#4f46e5" strokeWidth="1.6"><path d="M3 3h10v2l-2 3v5H5V8L3 5z" /></svg></div>
           <div><div className="stat-num">{stats.total}</div><div className="stat-lbl">Total materias primas</div></div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: '#f0fdf4' }}><svg viewBox="0 0 16 16" fill="none" stroke="#16a34a" strokeWidth="1.6"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg></div>
+          <div className="stat-icon" style={{ background: '#f0fdf4' }}><svg viewBox="0 0 16 16" fill="none" stroke="#16a34a" strokeWidth="1.6"><path d="M3 8.5l3.5 3.5 6.5-7" /></svg></div>
           <div><div className="stat-num">{stats.active}</div><div className="stat-lbl">Disponibles</div></div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: '#fef2f2' }}><svg viewBox="0 0 16 16" fill="none" stroke="#dc2626" strokeWidth="1.6"><circle cx="8" cy="8" r="5.5"/><path d="M6 6l4 4M10 6l-4 4"/></svg></div>
+          <div className="stat-icon" style={{ background: '#fef2f2' }}><svg viewBox="0 0 16 16" fill="none" stroke="#dc2626" strokeWidth="1.6"><circle cx="8" cy="8" r="5.5" /><path d="M6 6l4 4M10 6l-4 4" /></svg></div>
           <div><div className="stat-num">{stats.inactive}</div><div className="stat-lbl">Desactivados</div></div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: '#fffbeb' }}><svg viewBox="0 0 16 16" fill="none" stroke="#d97706" strokeWidth="1.6"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 10.5v.5"/></svg></div>
+          <div className="stat-icon" style={{ background: '#fffbeb' }}><svg viewBox="0 0 16 16" fill="none" stroke="#d97706" strokeWidth="1.6"><circle cx="8" cy="8" r="6" /><path d="M8 5v3.5M8 10.5v.5" /></svg></div>
           <div><div className="stat-num">{stats.lowStock}</div><div className="stat-lbl">Stock bajo</div></div>
         </div>
       </div>
 
       <div className="toolbar">
-  
-  {/* FILA SUPERIOR: Buscador + Filtros */}
-  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', flexWrap: 'wrap' }}>
-    <div className="search-box">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M11.5 6.5a5 5 0 1 1-10 0 5 5 0 0 1 10 0zM15 15l-3.5-3.5" />
-      </svg>
-      <input type="text" placeholder="Buscar por nombre, categoria..." />
-    </div>
 
-    <div className="filter-group">
-      <button className={`fchip ${currentFilter === 'all' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('all')}>
-        <span className="fchip-dot" style={{ background: '#c7d2fe' }}></span> Todos
-      </button>
-      <button className={`fchip ${currentFilter === 'Proteina' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Proteina')}>
-        <span className="fchip-dot" style={{ background: '#a855f7' }}></span> Proteina
-      </button>
-      <button className={`fchip ${currentFilter === 'Abarrotes' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Abarrotes')}>
-        <span className="fchip-dot" style={{ background: '#3b82f6' }}></span> Abarrotes
-      </button>
-      <button className={`fchip ${currentFilter === 'Frutas' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Frutas')}>
-        <span className="fchip-dot" style={{ background: '#f9162dc8' }}></span> Frutas
-      </button>
-      <button className={`fchip ${currentFilter === 'Verduras' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Verduras')}>
-        <span className="fchip-dot" style={{ background: '#0fa730' }}></span> Verduras
-      </button>
-      <button className={`fchip ${currentFilter === 'Lacteos' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Lacteos')}>
-        <span className="fchip-dot" style={{ background: '#e2f916' }}></span> Lacteos
-      </button>
-      <button className={`fchip ${currentFilter === 'Limpieza' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Limpieza')}>
-        <span className="fchip-dot" style={{ background: '#16f94f' }}></span> Limpieza
-      </button>
-      <button className={`fchip ${currentFilter === 'Insumos' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Insumos')}>
-        <span className="fchip-dot" style={{ background: '#e2f916' }}></span> Insumos
-      </button>
-      <button className={`fchip ${currentFilter === 'Otro' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Otro')}>
-        <span className="fchip-dot" style={{ background: '#f9165a' }}></span> Otro
-      </button>
-    </div>
-  </div>
+        {/* FILA SUPERIOR: Buscador + Filtros */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', flexWrap: 'wrap' }}>
+          <div className="search-box">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M11.5 6.5a5 5 0 1 1-10 0 5 5 0 0 1 10 0zM15 15l-3.5-3.5" />
+            </svg>
+            <input type="text" placeholder="Buscar por nombre, categoria..." />
+          </div>
 
-  {/* FILA INFERIOR: Solo disponibles + Ordenar */}
-  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
-    <button className={`toggle-avail ${onlyAvailable ? 'on' : ''}`} type="button" onClick={() => setOnlyAvailable((prev) => !prev)}>
-      <div className={`sw ${onlyAvailable ? 'on' : ''}`}><div className="sw-k"></div></div>
-      Solo disponibles
-    </button>
+          <div className="filter-group">
+            <button className={`fchip ${currentFilter === 'all' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('all')}>
+              <span className="fchip-dot" style={{ background: '#c7d2fe' }}></span> Todos
+            </button>
+            <button className={`fchip ${currentFilter === 'Proteina' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Proteina')}>
+              <span className="fchip-dot" style={{ background: '#a855f7' }}></span> Proteina
+            </button>
+            <button className={`fchip ${currentFilter === 'Abarrotes' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Abarrotes')}>
+              <span className="fchip-dot" style={{ background: '#3b82f6' }}></span> Abarrotes
+            </button>
+            <button className={`fchip ${currentFilter === 'Frutas' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Frutas')}>
+              <span className="fchip-dot" style={{ background: '#f9162dc8' }}></span> Frutas
+            </button>
+            <button className={`fchip ${currentFilter === 'Verduras' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Verduras')}>
+              <span className="fchip-dot" style={{ background: '#0fa730' }}></span> Verduras
+            </button>
+            <button className={`fchip ${currentFilter === 'Lacteos' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Lacteos')}>
+              <span className="fchip-dot" style={{ background: '#e2f916' }}></span> Lacteos
+            </button>
+            <button className={`fchip ${currentFilter === 'Limpieza' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Limpieza')}>
+              <span className="fchip-dot" style={{ background: '#16f94f' }}></span> Limpieza
+            </button>
+            <button className={`fchip ${currentFilter === 'Insumos' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Insumos')}>
+              <span className="fchip-dot" style={{ background: '#e2f916' }}></span> Insumos
+            </button>
+            <button className={`fchip ${currentFilter === 'Otro' ? 'on' : ''}`} type="button" onClick={() => setCurrentFilter('Otro')}>
+              <span className="fchip-dot" style={{ background: '#f9165a' }}></span> Otro
+            </button>
+          </div>
+        </div>
 
-    <div className="sort-wrap" aria-label="Ordenar materias primas">
-      <span className="sort-label">Ordenar</span>
-      <div className="sort-select-wrap">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-          <path d="M5 3h8M3 8h10M7 13h6" />
-        </svg>
-        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-          <option value="name_asc">Nombre (A-Z)</option>
-          <option value="name_desc">Nombre (Z-A)</option>
-          <option value="stock_asc">Stock (menor a mayor)</option>
-          <option value="stock_desc">Stock (mayor a menor)</option>
-        </select>
-        <svg className="sort-caret" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-          <path d="m4 6 4 4 4-4" />
-        </svg>
+        {/* FILA INFERIOR: Solo disponibles + Ordenar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
+          <button className={`toggle-avail ${onlyAvailable ? 'on' : ''}`} type="button" onClick={() => setOnlyAvailable((prev) => !prev)}>
+            <div className={`sw ${onlyAvailable ? 'on' : ''}`}><div className="sw-k"></div></div>
+            Solo disponibles
+          </button>
+
+          <div className="sort-wrap" aria-label="Ordenar materias primas">
+            <span className="sort-label">Ordenar</span>
+            <div className="sort-select-wrap">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                <path d="M5 3h8M3 8h10M7 13h6" />
+              </svg>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                <option value="name_asc">Nombre (A-Z)</option>
+                <option value="name_desc">Nombre (Z-A)</option>
+                <option value="stock_asc">Stock (menor a mayor)</option>
+                <option value="stock_desc">Stock (mayor a menor)</option>
+              </select>
+              <svg className="sort-caret" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <path d="m4 6 4 4 4-4" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
       </div>
-    </div>
-  </div>
-
-</div>
 
       <div className="table-wrap">
         {filteredMateriasPrimas.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3h10v2l-2 3v5H5V8L3 5z"/></svg></div>
+            <div className="empty-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3h10v2l-2 3v5H5V8L3 5z" /></svg></div>
             <div className="empty-t">Sin resultados</div>
             <div className="empty-s">Prueba con otro filtro o busqueda</div>
           </div>
@@ -446,13 +458,13 @@ export default function InventarioPage() {
                     <td>
                       <div className="actions-cell">
                         <button className="act-btn" type="button" title="Editar" onClick={() => openEdit(i)}>
-                          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M11 2l3 3-8 8H3v-3z"/></svg>
+                          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M11 2l3 3-8 8H3v-3z" /></svg>
                         </button>
                         <button className={`act-btn ${i.disponible ? 'deact' : 'react'}`} type="button" title={i.disponible ? 'Desactivar' : 'Reactivar'} onClick={() => openToggle(i)}>
                           {i.disponible ? (
-                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="8" cy="8" r="5.5"/><path d="M6 6l4 4M10 6l-4 4"/></svg>
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="8" cy="8" r="5.5" /><path d="M6 6l4 4M10 6l-4 4" /></svg>
                           ) : (
-                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 8.5l3.5 3.5 6.5-7" /></svg>
                           )}
                         </button>
                       </div>
@@ -475,11 +487,11 @@ export default function InventarioPage() {
             </div>
             <div className="mbody">
               <div className="form-1">
-                
-                    <div>
-                        <label className="form-lbl">ID Materia Prima</label>
-                        <input className="finput" placeholder="Ej: Proteina-001" value={formData.idMateriaPrima} onChange={(e) => setFormData((prev) => ({ ...prev, idMateriaPrima: e.target.value }))} />
-                    </div>    
+
+                <div>
+                  <label className="form-lbl">ID Materia Prima</label>
+                  <input className="finput" placeholder="Ej: Proteina-001" value={formData.idMateriaPrima} onChange={(e) => setFormData((prev) => ({ ...prev, idMateriaPrima: e.target.value }))} />
+                </div>
               </div>
               <div className="form-2">
                 <div>
@@ -523,7 +535,7 @@ export default function InventarioPage() {
             </div>
             <div className="mbody">
               <div className="warn-box">
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 10.5v.5"/></svg>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="8" cy="8" r="6" /><path d="M8 5v3.5M8 10.5v.5" /></svg>
                 <p>
                   {toggleTarget.disponible ? (
                     <>La materia prima <strong>{toggleTarget.nombre}</strong> quedara <strong>inactiva</strong> y no podra anadirse a nuevos pedidos. Puedes reactivarla en cualquier momento.</>

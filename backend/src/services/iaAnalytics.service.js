@@ -1,16 +1,20 @@
 import { PrismaClient } from '@prisma/client';
-import OpenAI from 'openai';
+import { GoogleGenAI } from '@google/genai'; // SDK oficial actualizado
 
 const prisma = new PrismaClient();
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Inicializa Gemini usando la variable de entorno
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// Reglas de durabilidad aplicadas directamente a las CATEGORÍAS de la MATERIA PRIMA
+// Reglas de durabilidad basadas en tus categorías reales de MateriaPrima
 const REGLAS_CADUCIDAD_MP = {
-  "Proteínas": { diasMaxBodega: 3, tipo: "Altamente Perecedero" }, // Carne, Pollo
-  "Verduras": { diasMaxBodega: 5, tipo: "Perecedero" },          // Tomate, Cebolla
-  "Lácteos": { diasMaxBodega: 6, tipo: "Perecedero" },           // Queso
-  "Abarrotes": { diasMaxBodega: 120, tipo: "No Perecedero" },     // Arroz, Aceite
-  "Licores": { diasMaxBodega: 365, tipo: "No Perecedero" }
+  "Proteina": { diasMaxBodega: 3, tipo: "Altamente Perecedero" },
+  "Lacteos": { diasMaxBodega: 7, tipo: "Perecedero" },
+  "Verduras": { diasMaxBodega: 5, tipo: "Perecedero" },
+  "Frutas": { diasMaxBodega: 6, tipo: "Perecedero" },
+  "Abarrotes": { diasMaxBodega: 90, tipo: "No Perecedero" },   // Arroz, sal, etc.
+  "Insumos": { diasMaxBodega: 180, tipo: "No Perecedero" },   // Empaques, servilletas
+  "Limpieza": { diasMaxBodega: 365, tipo: "No Perecedero" },  // Jabón, desinfectantes
+  "Otro": { diasMaxBodega: 30, tipo: "General" }
 };
 
 class IaAnalyticsService {
@@ -65,36 +69,46 @@ class IaAnalyticsService {
     materiasPrimas.forEach(mp => {
       const promedioDiario = consumosMateriaPrimaDia[mp.id] || 0;
       const stockActual = mp.stock;
-      const regla = REGLAS_CADUCIDAD_MP[mp.categoria] || { diasMaxBodega: 15, tipo: "General" };
 
-      // Días que durará el ingrediente en bodega antes de agotarse por completo
+      // Buscar la regla usando tus categorías exactas. Si no existe, cae en "Otro"
+      const regla = REGLAS_CADUCIDAD_MP[mp.categoria] || REGLAS_CADUCIDAD_MP["Otro"];
+
       let diasParaAgotar = promedioDiario > 0 ? stockActual / promedioDiario : 999;
 
-      // Lógica de alertas por desabastecimiento
+      // Lógica de alertas por desabastecimiento (Stock Crítico / Bajo)
       if (promedioDiario > 0 && diasParaAgotar <= 2) criticos++;
       else if (promedioDiario > 0 && diasParaAgotar <= 5) bajo++;
       else normal++;
 
-      // Lógica de alertas por Merma (El stock dura más de lo que vive el ingrediente fresco)
       let enRiesgoDeVencer = false;
       let cantidadEnRiesgo = 0;
+      let motivoAlerta = "";
 
-      if (regla.tipo !== "No Perecedero" && diasParaAgotar > regla.diasMaxBodega && promedioDiario > 0) {
-        enRiesgoDeVencer = true;
-        const consumoEstimadoVidaUtil = promedioDiario * regla.diasMaxBodega;
-        cantidadEnRiesgo = Math.max(0, Math.ceil(stockActual - consumoEstimadoVidaUtil));
+      if (promedioDiario > 0 && diasParaAgotar > regla.diasMaxBodega) {
+        if (regla.tipo === "Altamente Perecedero" || regla.tipo === "Perecedero") {
+          // Alerta de descomposición física para Proteina, Lacteos, Verduras, Frutas
+          enRiesgoDeVencer = true;
+          const consumoEstimadoVidaUtil = promedioDiario * regla.diasMaxBodega;
+          cantidadEnRiesgo = Math.max(0, Math.ceil(stockActual - consumoEstimadoVidaUtil));
+          motivoAlerta = `Riesgo de descomposición: Se proyecta perder ${cantidadEnRiesgo} ${mp.unidad} antes de vencer.`;
+        } else if (diasParaAgotar > 120) {
+          // Alerta de Capital Estancado para Abarrotes, Insumos, Limpieza
+          enRiesgoDeVencer = true; 
+          cantidadEnRiesgo = Math.ceil(stockActual - (promedioDiario * 30)); // Exceso sobre un mes de uso
+          motivoAlerta = `Sobreabastecimiento crítico: Tienes stock de ${mp.categoria.toLowerCase()} para más de 4 meses. Capital retenido.`;
+        }
       }
 
       const infoMp = {
-        id: mp.idMateriaPrima, // Tu SKU
+        id: mp.idMateriaPrima,
         nombre: mp.nombre,
         categoria: mp.categoria,
         stock_actual: `${stockActual} ${mp.unidad}`,
         consumo_diario: `${promedioDiario.toFixed(2)} ${mp.unidad}/día`,
         dias_restantes: diasParaAgotar === 999 ? "Sin rotación" : Math.ceil(diasParaAgotar),
-        limite_frescura_dias: regla.diasMaxBodega,
         riesgo_merma: enRiesgoDeVencer,
-        cantidad_riesgo: cantidadEnRiesgo
+        cantidad_riesgo: cantidadEnRiesgo,
+        mensaje_alerta: motivoAlerta
       };
 
       materiasAnalizadas.push(infoMp);
@@ -103,7 +117,7 @@ class IaAnalyticsService {
       }
     });
 
-    // --- 5. LA IA PROCESA LOS INGREDIENTES EN RIESGO ---
+    // --- 5. LA IA (GEMINI) PROCESA LOS INGREDIENTES EN RIESGO ---
     let analiticaIA = "No hay suficientes datos de materias primas para procesar con inteligencia artificial.";
 
     if (materiasAnalizadas.length > 0) {
@@ -123,23 +137,24 @@ class IaAnalyticsService {
           3. [ABARROTES] Evalúa si ingredientes de larga duración (como el arroz o licores) están sobre-estoqueados innecesariamente restando liquidez al negocio.
         `;
 
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0.6,
+        // CORRECCIÓN AQUÍ: Sintaxis oficial adaptada para @google/genai
+        const response = await ai.models.generateContent({
+          model: 'gemini-1.5-flash',
+          contents: prompt,
         });
 
-        analiticaIA = response.choices[0].message.content;
+        // Extraemos el texto de la respuesta de Gemini
+        analiticaIA = response.text;
       } catch (error) {
-        console.error("OpenAI Error:", error);
-        analiticaIA = "Cálculo analítico finalizado. Se sugiere revisar manualmente el inventario de proteínas en el módulo físico.";
+        console.error("Gemini AI Error:", error);
+        analiticaIA = "Cálculo analítico finalizado matemáticamente. Se sugiere revisar manualmente el inventario de proteínas en el módulo físico.";
       }
     }
 
     // 6. Respuesta limpia para el Frontend
     return {
       resumen_cards: {
-        productos_activos: materiasPrimas.length, // Total materias primas tracking
+        productos_activos: materiasPrimas.length, 
         stock_normal: normal,
         stock_bajo: bajo,
         criticos: criticos
@@ -148,7 +163,7 @@ class IaAnalyticsService {
         sku: m.id,
         producto: m.nombre,
         categoria: m.categoria,
-        mensaje: `Peligro de vencimiento: Se proyecta perder ${m.cantidad_riesgo} unidades por falta de rotación en cocina.`
+        mensaje: m.mensaje_alerta || `Peligro de vencimiento: Se proyecta perder ${m.cantidad_riesgo} unidades.`
       })),
       analisis_ia_texto: analiticaIA,
       inventario_completo: materiasAnalizadas
@@ -156,4 +171,4 @@ class IaAnalyticsService {
   }
 }
 
-export default new IaAnalyticsService();  
+export default new IaAnalyticsService();
