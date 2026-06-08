@@ -3,40 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import authService from '../services/api';
 import { UxToast } from '../components/UXFeedback';
 import { getStoredSettings } from '../utils/settings';
+import { toCurrency } from '../utils/format';
+import { buildTotals, readTaxSettings } from '../utils/tax';
 import '../styles/checkout.css';
-
-const ACTIVE_STATES = new Set(['pendiente', 'preparando', 'listo', 'entregado']);
-
-const toCurrency = (value) =>
-  `$${Math.round(Number(value || 0)).toLocaleString('es-CO')}`;
-
-const buildTotals = (sum, taxSettings) => {
-  const base = Math.round(Number(sum || 0));
-  const vatRate = taxSettings.applyVat ? taxSettings.vatPercent / 100 : 0;
-
-  if (!vatRate) return { subtotal: base, tax: 0, total: base };
-
-  if (taxSettings.pricesIncludeVat) {
-    const subtotal = Math.round(base / (1 + vatRate));
-    let tax = Math.round(subtotal * vatRate);
-    const correction = base - (subtotal + tax);
-    if (correction !== 0) tax += correction;
-    return { subtotal, tax, total: base };
-  }
-
-  const subtotal = base;
-  const tax = Math.round(subtotal * vatRate);
-  return { subtotal, tax, total: subtotal + tax };
-};
-
-const readTaxSettings = () => {
-  const stored = getStoredSettings();
-  return {
-    vatPercent: Number(stored.vatPercent ?? 19),
-    applyVat: stored.applyVat !== false,
-    pricesIncludeVat: stored.pricesIncludeVat !== false
-  };
-};
 
 const getCurrentUserId = () => {
   try {
@@ -65,13 +34,15 @@ export default function CheckoutPage() {
   const [tipPercent, setTipPercent] = useState(10);
   const [discountValue, setDiscountValue] = useState('');
 
+  // Estado para controlar la espera visual dentro del propio botón/modal
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const [modals, setModals] = useState({
     split: false,
     edit: false,
     print: false,
     delete: false,
-    complete: false,
-    success: false
+    complete: false
   });
 
   const pushNotice = (message, type = 'info') =>
@@ -100,20 +71,8 @@ export default function CheckoutPage() {
 
   const loadPedido = async () => {
     try {
-      const data = await authService.getPedidos();
-      const pedidos = Array.isArray(data) ? data : [];
-
-      const candidates = pedidos
-        .filter((p) => Number(p.mesa) === mesaNumero)
-        .filter((p) =>
-          ACTIVE_STATES.has(String(p.estado || '').toLowerCase())
-        )
-        .sort(
-          (a, b) =>
-            new Date(b.fecha || 0) - new Date(a.fecha || 0)
-        );
-
-      setPedido(candidates[0] || null);
+      const pedido = await authService.getPedidoActivoMesa(mesaNumero);
+      setPedido(pedido);
     } catch (e) {
       pushNotice('Error cargando pedido', 'error');
     } finally {
@@ -152,18 +111,13 @@ export default function CheckoutPage() {
   );
 
   const openModal = (key) => {
-  setModals((prev) => ({
-    ...prev,
-    [key]: true
-  }));
-};
+    setModals((prev) => ({ ...prev, [key]: true }));
+  };
 
-const closeModal = (key) => {
-  setModals((prev) => ({
-    ...prev,
-    [key]: false
-  }));
-};
+  const closeModal = (key) => {
+    setModals((prev) => ({ ...prev, [key]: false }));
+  };
+
   const totals = useMemo(
     () => buildTotals(baseSum, taxSettings),
     [baseSum, taxSettings]
@@ -184,9 +138,9 @@ const closeModal = (key) => {
 
   const grandTotal = totals.total + tipAmount - discountAmount;
   const change =
-  paymentMethod === 'cash' && amountReceived
-    ? Math.max(0, Math.round(Number(amountReceived) - grandTotal))
-    : 0;
+    paymentMethod === 'cash' && amountReceived
+      ? Math.max(0, Math.round(Number(amountReceived) - grandTotal))
+      : 0;
 
   const openPreviewPdf = async () => {
     try {
@@ -212,8 +166,12 @@ const closeModal = (key) => {
     }
   };
 
+  // 🛍️ PROCESO DE VENTA COMPLETO MODIFICADO
   const handleCompleteSale = async () => {
     try {
+      setIsProcessing(true); // Bloquea los botones del modal para evitar doble click, sin poner pantalla de carga
+
+      // 1. Enviamos la orden al backend
       const result = await authService.checkoutPedido({
         pedidoId: pedido.id,
         metodoPago: paymentMethod,
@@ -223,40 +181,51 @@ const closeModal = (key) => {
         mesero: getCurrentUserId()
       });
 
-      setModals((p) => ({ ...p, success: true }));
-
+      // 2. Si el backend responde, abrimos el PDF inmediatamente
       if (result?.factura?.numero) {
-        // Prefer inline base64 returned by the API
-        if (result.pdfBase64) {
-          const byteCharacters = atob(result.pdfBase64);
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          const blob = new Blob([byteArray], { type: 'application/pdf' });
-          const url = window.URL.createObjectURL(blob);
-          window.open(url, '_blank');
-        } else {
-          const res = await authService.api.get(
-            `/facturas/${result.factura.numero}/pdf`,
-            { responseType: 'blob' }
-          );
-
-          const url = window.URL.createObjectURL(
-            new Blob([res.data], { type: 'application/pdf' })
-          );
-
-          window.open(url, '_blank');
-        }
+        authService.api.get(`/facturas/${result.factura.numero}/pdf`, { responseType: 'blob' })
+          .then((res) => {
+            const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+            window.open(url, '_blank');
+          })
+          .catch((err) => console.error("Error al obtener el archivo PDF:", err));
       }
+
+      // 🔥 LIMPIEZA TOTAL PARA FORZAR LA LIBERACIÓN DE LA MESA EN EL FRONTEND
+      setPedido(null);
+      closeModal('complete');
+      
+      // 3. Te manda directo a las mesas sin escalas
+      navigate('/mesas', { state: { saleSuccess: true, mesaLiberada: mesaNumero } });
+
     } catch (e) {
+      console.error(e);
       pushNotice('Error completando venta', 'error');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  if (loading) return <div>Cargando...</div>;
-  if (!pedido) return <div>No hay pedido</div>;
+  const handleEditPedido = () => {
+    closeModal('edit');
+    navigate(`/pedido?mesa=${mesaNumero}`);
+  };
+
+  const handleDeletePedido = async () => {
+    try {
+      closeModal('delete');
+      setLoading(true);
+      await authService.deletePedido(pedido.id);
+      navigate('/mesas');
+    } catch (e) {
+      pushNotice('Error eliminando pedido', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <div className="loading-view">Cargando datos del pedido...</div>;
+  if (!pedido) return <div className="loading-view">No hay un pedido activo para esta mesa.</div>;
 
   return (
     <div className="checkout-page">
@@ -286,7 +255,7 @@ const closeModal = (key) => {
           <div className="order-header">
             <div>
               <div className="order-title">Resumen del Pedido</div>
-              <div className="order-time">Mesero: {pedido?.mesero?.nombre || pedido?.mesero?.username || pedido?.responsable || 'Sin asignar'}</div>
+              <div className="order-time">Mesero: {pedido?.mesero?.nombre || pedido?.mesero?.username || 'Sin asignar'}</div>
             </div>
           </div>
 
@@ -331,36 +300,16 @@ const closeModal = (key) => {
           </div>
 
           <div className="quick-actions">
-            <button className="action-btn" type="button" onClick={() => openModal('edit')}>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
-                <path d="M11.5 2.5l2 2-8 8H3.5v-2l8-8z" />
-              </svg>
-              Editar Pedido
-            </button>
-            <button className="action-btn" type="button" onClick={() => openModal('split')}>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
-                <path d="M8 2v12M2 8h12M4 4h8M4 12h8" />
-              </svg>
-              Dividir Cuenta
-            </button>
-            <button className="action-btn" type="button" onClick={() => openModal('print')}>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
-                <path d="M4 5V2h8v3M4 11H2V6h12v5h-2M4 11h8v3H4v-3z" />
-              </svg>
-              Imprimir Factura
-            </button>
-            <button className="action-btn danger" type="button" onClick={() => openModal('delete')}>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
-                <path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" />
-              </svg>
-              Eliminar Pedido
-            </button>
+            <button className="action-btn" type="button" onClick={() => openModal('edit')}>Editar Pedido</button>
+            <button className="action-btn" type="button" onClick={() => openModal('split')}>Dividir Cuenta</button>
+            <button className="action-btn" type="button" onClick={() => openModal('print')}>Imprimir Factura</button>
+            <button className="action-btn danger" type="button" onClick={() => openModal('delete')}>Eliminar Pedido</button>
           </div>
         </div>
 
         <div className="sidebar-panel">
           <div className="payment-card">
-            <div className="card-label">Metodo de Pago</div>
+            <div className="card-label">Método de Pago</div>
             <div className="payment-methods">
               {paymentOptions.map((opt) => (
                 <button
@@ -379,7 +328,7 @@ const closeModal = (key) => {
               className="amount-input"
               value={amountReceived}
               onChange={(e) => setAmountReceived(e.target.value)}
-              placeholder={paymentMethod === 'cash' ? '$0.00' : 'Monto exacto'}
+              placeholder="$0.00"
             />
 
             <div className={`change-display${paymentMethod === 'cash' && amountReceived && change >= 0 ? ' show' : ''}`}>
@@ -388,58 +337,45 @@ const closeModal = (key) => {
             </div>
           </div>
 
-          <div className="extra-card">
-            <div className="card-label">Opciones Adicionales</div>
-            <div className="extra-item">
-              <div>
-                <div className="extra-label">Agregar propina</div>
-                <div className="extra-hint">Opcional</div>
-              </div>
-              <input
-                type="checkbox"
-                checked={includeTip}
-                onChange={(e) => setIncludeTip(e.target.checked)}
-              />
-            </div>
-            <div className="extra-item">
-              <div>
-                <div className="extra-label">Descuento especial</div>
-                <div className="extra-hint">% o $</div>
-              </div>
-              <input
-                type="text"
-                className="extra-input"
-                value={discountValue}
-                onChange={(e) => setDiscountValue(e.target.value)}
-                placeholder="0%"
-              />
-            </div>
-          </div>
-
           <button className="complete-btn" type="button" onClick={() => openModal('complete')}>
-            <svg viewBox="-5 2 50 15" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 9l4 4 8-8" />
-            </svg>
             Completar Venta
           </button>
         </div>
       </div>
 
-      {modals.split && (
-        <div className="modal-overlay show" onClick={() => closeModal('split')}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      {/* MODAL DE CONFIRMACIÓN - EL ÚNICO QUE SE QUEDA EN ESPERA */}
+      {modals.complete && (
+        <div className="modal-overlay show">
+          <div className="modal-content">
             <div className="modal-header">
-              <div className="modal-title">Dividir Cuenta</div>
-              <button className="modal-close" type="button" onClick={() => closeModal('split')}>×</button>
+              <div className="modal-title">Confirmar Transacción</div>
+              {!isProcessing && <button className="modal-close" type="button" onClick={() => closeModal('complete')}>×</button>}
             </div>
             <div className="modal-body">
               <div className="confirm-message">
-                <p>Esta funcion estara disponible proximamente.</p>
+                <p>¿Deseas liquidar la cuenta e imprimir la factura?</p>
+                <p style={{ marginTop: '8px' }}>Total: <strong>{toCurrency(grandTotal)}</strong></p>
+                {paymentMethod === 'cash' && <p>Cambio: <strong>{toCurrency(change)}</strong></p>}
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn-modal secondary" type="button" onClick={() => closeModal('split')}>Cerrar</button>
+              <button className="btn-modal secondary" type="button" disabled={isProcessing} onClick={() => closeModal('complete')}>
+                Cancelar
+              </button>
+              <button className="btn-modal primary" type="button" disabled={isProcessing} onClick={handleCompleteSale}>
+                {isProcessing ? 'Procesando pago...' : 'Confirmar y Pagar'}
+              </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODALS SECUNDARIOS */}
+      {modals.split && (
+        <div className="modal-overlay show" onClick={() => closeModal('split')}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-body"><p>Próximamente disponible.</p></div>
+            <div className="modal-footer"><button className="btn-modal secondary" onClick={() => closeModal('split')}>Cerrar</button></div>
           </div>
         </div>
       )}
@@ -447,18 +383,10 @@ const closeModal = (key) => {
       {modals.edit && (
         <div className="modal-overlay show" onClick={() => closeModal('edit')}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">Editar Pedido</div>
-              <button className="modal-close" type="button" onClick={() => closeModal('edit')}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="confirm-message warning">
-                <p><strong>¿Deseas editar el pedido?</strong><br />Se abrira el pedido para modificar productos.</p>
-              </div>
-            </div>
+            <div className="modal-body"><p>¿Ir a la pantalla de edición del pedido?</p></div>
             <div className="modal-footer">
-              <button className="btn-modal secondary" type="button" onClick={() => closeModal('edit')}>Cancelar</button>
-              <button className="btn-modal primary" type="button" onClick={handleEditPedido}>Continuar</button>
+              <button className="btn-modal secondary" onClick={() => closeModal('edit')}>No</button>
+              <button className="btn-modal primary" onClick={handleEditPedido}>Editar</button>
             </div>
           </div>
         </div>
@@ -467,20 +395,10 @@ const closeModal = (key) => {
       {modals.print && (
         <div className="modal-overlay show" onClick={() => closeModal('print')}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">Imprimir Factura</div>
-              <button className="modal-close" type="button" onClick={() => closeModal('print')}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="confirm-message">
-                <p><strong>¿Deseas imprimir la precuenta?</strong><br />Puedes imprimir antes de confirmar el pago.</p>
-              </div>
-            </div>
+            <div className="modal-body"><p>¿Imprimir copia de precuenta?</p></div>
             <div className="modal-footer">
-              <button className="btn-modal secondary" type="button" onClick={() => closeModal('print')}>Cancelar</button>
-              <button className="btn-modal primary" type="button" onClick={openPreviewPdf}>
-                Imprimir
-              </button>
+              <button className="btn-modal secondary" onClick={() => closeModal('print')}>Cancelar</button>
+              <button className="btn-modal primary" onClick={openPreviewPdf}>Imprimir</button>
             </div>
           </div>
         </div>
@@ -489,69 +407,10 @@ const closeModal = (key) => {
       {modals.delete && (
         <div className="modal-overlay show" onClick={() => closeModal('delete')}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">Eliminar Pedido</div>
-              <button className="modal-close" type="button" onClick={() => closeModal('delete')}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="confirm-message danger">
-                <p><strong>¿Estas seguro de eliminar este pedido?</strong><br />La mesa quedara disponible.</p>
-              </div>
-            </div>
+            <div className="modal-body"><p>¿Estás seguro de eliminar por completo este pedido?</p></div>
             <div className="modal-footer">
-              <button className="btn-modal secondary" type="button" onClick={() => closeModal('delete')}>Cancelar</button>
-              <button className="btn-modal danger" type="button" onClick={handleDeletePedido}>Eliminar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {modals.complete && (
-        <div className="modal-overlay show" onClick={() => closeModal('complete')}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">Completar Venta</div>
-              <button className="modal-close" type="button" onClick={() => closeModal('complete')}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="confirm-message">
-                <p><strong>¿Deseas completar la venta?</strong><br />Cambio a devolver: <strong>{toCurrency(change)}</strong></p>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn-modal secondary" type="button" onClick={() => closeModal('complete')}>Cancelar</button>
-              <button className="btn-modal primary" type="button" onClick={handleCompleteSale}>Confirmar Venta</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {modals.success && (
-        <div className="modal-overlay show" onClick={() => closeModal('success')}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-body">
-              <div className="success-animation">
-                <div className="success-icon">
-                  <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="3">
-                    <path d="M8 20l8 8 16-16" />
-                  </svg>
-                </div>
-                <div className="success-title">Venta completada</div>
-                <div className="success-desc">Pedido facturado exitosamente</div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                className="btn-modal primary"
-                type="button"
-                onClick={() => {
-                  closeModal('success');
-                  navigate('/mesas');
-                }}
-                style={{ width: '100%', justifyContent: 'center' }}
-              >
-                Volver a Mesas
-              </button>
+              <button className="btn-modal secondary" onClick={() => closeModal('delete')}>Cancelar</button>
+              <button className="btn-modal danger" onClick={handleDeletePedido}>Eliminar</button>
             </div>
           </div>
         </div>

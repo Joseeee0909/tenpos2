@@ -137,6 +137,17 @@ const getTotalUsers = async () => {
   // Si tu backend devuelve un array directamente
   return Array.isArray(res.data) ? res.data.length : (res.data.usuarios?.length || 0);
 };
+/* ---------------------------------------------------
+   🔹 AIAnalytics
+--------------------------------------------------- */
+const getAIAnalytics = async (params) => {
+  const res = await api.get("/ia/inventario-analisis");
+  return res.data;
+}
+ const applyAIRecommendations = async (recommendationsData) => {
+  const res = await api.post("/ai/analytics/apply", recommendationsData);
+  return res.data;
+};
 
 /* ---------------------------------------------------
    🔹 MESAS
@@ -174,9 +185,19 @@ const inicializarMesas = async () => {
 /* ---------------------------------------------------
    🔹 PEDIDOS
 --------------------------------------------------- */
-const getPedidos = async () => {
-  const res = await api.get("/pedidos");
+const getPedidos = async (params) => {
+  const res = await api.get("/pedidos", { params });
   return res.data;
+};
+
+const getPedidosContext = async () => {
+  const res = await api.get("/pedidos/context");
+  return res.data;
+};
+
+const getPedidoActivoMesa = async (mesa) => {
+  const data = await getPedidos({ mesa, limit: 1 });
+  return Array.isArray(data) ? data[0] || null : null;
 };
 
 const getPedido = async (id) => {
@@ -236,6 +257,38 @@ const logAccess = async (data) => {
   const res = await api.post('/auditoria/acceso', data);
   return res.data;
 };
+/* ---------------------------------------------------
+   🔹 INVENTARIO
+--------------------------------------------------- */
+
+const getInventario = async () => {
+  const res = await api.get('/materias-primas');
+  return res.data;
+};
+
+const crearInventario = async (data) => {
+  const res = await api.post('/materias-primas', data);
+  return res.data;
+};
+
+const actualizarInventario = async (id, data) => {
+  const res = await api.put(`/materias-primas/${id}`, data);
+  return res.data;
+};
+
+const eliminarInventario = async (id) => {
+  const res = await api.delete(`/materias-primas/${id}`);
+  return res.data;
+};
+
+const toggleDisponibilidadInventario = async (id, disponible) => {
+  const res = await api.patch(`/materias-primas/${id}/disponible`, { disponible });
+  return res.data;
+};
+
+
+
+
 
 /* ---------------------------------------------------
    🔹 VENTAS
@@ -319,6 +372,8 @@ export default {
   eliminarMesa,
   inicializarMesas,
   getPedidos,
+  getPedidosContext,
+  getPedidoActivoMesa,
   getPedido,
   crearPedido,
   actualizarPedido,
@@ -337,5 +392,12 @@ export default {
   getReport,
   getMyHistory,
   sendAuditEvent,
-  logAccess
+  logAccess,
+  getInventario,
+  crearInventario,
+  actualizarInventario,
+  eliminarInventario,
+  getAIAnalytics,
+  applyAIRecommendations,
+  toggleDisponibilidadInventario
 };

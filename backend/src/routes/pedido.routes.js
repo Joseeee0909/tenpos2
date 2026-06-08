@@ -2,6 +2,7 @@ import express from "express"
 import {
   crearPedido,
   obtenerPedidos,
+  obtenerPedidosContext,
   obtenerPedido,
   actualizarPedido,
   eliminarPedido
@@ -11,6 +12,7 @@ import { verifyToken, requirePermission } from "../middlewares/auth.middleware.j
 const router = express.Router()
 
 router.post("/", verifyToken, requirePermission('crear_pedidos'), crearPedido)
+router.get("/context", verifyToken, requirePermission('ver_pedidos', 'crear_pedidos', 'editar_pedidos'), obtenerPedidosContext)
 router.get("/", verifyToken, requirePermission('ver_pedidos', 'crear_pedidos', 'editar_pedidos'), obtenerPedidos)
 router.get("/:id", verifyToken, requirePermission('ver_pedidos', 'crear_pedidos', 'editar_pedidos'), obtenerPedido)
 router.put("/:id", verifyToken, requirePermission('editar_pedidos'), actualizarPedido)

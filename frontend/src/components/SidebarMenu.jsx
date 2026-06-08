@@ -31,6 +31,8 @@ export default function SidebarMenu() {
     mesas: ['ver_mesas', 'gestionar_mesas'],
     roles: ['gestionar_roles'],
     usuarios: ['gestionar_usuarios'],
+    utilidades: ['ver_utilidades', 'gestionar_utilidades'],
+    inventario: ['ver_inventario', 'gestionar_inventario'],
   };
 
   useEffect(() => {
@@ -52,6 +54,7 @@ export default function SidebarMenu() {
   const menuItems = useMemo(() => {
     const baseItems = [
       { id: 'inicio', icon: '🏠', text: 'Inicio', route: '/inicio' },
+      { id: 'inventario', icon: '📦', text: 'Inventario', route: '/inventario' },
       { id: 'productos', icon: '📦', text: 'Productos', route: '/productos' },
       { id: 'pedidos', icon: '📋', text: 'Pedidos', route: '/pedidos' },
       { id: 'ventas', icon: '💰', text: 'Ventas', route: '/ventas' },

@@ -23,7 +23,15 @@ class TablaController {
           pedidos: {
             where: { estado: { not: 'entregado' } },
             orderBy: { fecha: 'desc' },
-            take: 1
+            take: 1,
+            select: {
+              id: true,
+              estado: true,
+              responsable: true,
+              total: true,
+              fecha: true,
+              productos: { select: { cantidad: true, precio: true, nombre: true } }
+            }
           }
         },
         orderBy: { numero: 'asc' }
@@ -46,7 +54,15 @@ class TablaController {
           pedidos: {
             where: { estado: { not: 'entregado' } },
             orderBy: { fecha: 'desc' },
-            take: 1
+            take: 1,
+            select: {
+              id: true,
+              estado: true,
+              responsable: true,
+              total: true,
+              fecha: true,
+              productos: { select: { cantidad: true, precio: true, nombre: true } }
+            }
           }
         }
       });
@@ -137,7 +153,15 @@ class TablaController {
           pedidos: {
             where: { estado: { not: 'entregado' } },
             orderBy: { fecha: 'desc' },
-            take: 1
+            take: 1,
+            select: {
+              id: true,
+              estado: true,
+              responsable: true,
+              total: true,
+              fecha: true,
+              productos: { select: { cantidad: true, precio: true, nombre: true } }
+            }
           }
         }
       });

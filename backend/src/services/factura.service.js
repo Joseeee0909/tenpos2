@@ -65,20 +65,24 @@ export const formatInvoiceState = (state) => {
   return KNOWN_FACTURA_STATES.includes(value) ? value : value;
 };
 
+// 🔥 AQUÍ ESTÁ EL PRIMER EXPORT QUE EL CONTROLADOR NECESITA
 export const buildEmisorFromConfig = (config = {}) => {
   const { nit, dv } = parseNitValue(config?.nit || '800200100-0');
   return {
-    razonSocial: config?.nombre || 'SIIGO S.A.S',
+    razonSocial: config?.nombre || 'King Choclo',
+    nombre: config?.nombre || 'King Choclo',
     nit: nit || '800200100',
     dv: dv || '0',
-    direccion: config?.direccion || 'Cali, Colombia',
-    telefono: config?.telefono || '3001234567',
+    direccion: config?.direccion || 'DIR Calle 1#2-03 Cali, Colombia',
+    telefono: config?.telefono || '3123456789',
     email: config?.email || 'empresa@email.com',
-    resolucion: asString(config?.resolucion, ''),
-    rangoAutorizado: asString(config?.autorizada, '')
+    responsable: asString(config?.responsable, 'Responsable de IVA'),
+    resolucion: asString(config?.resolucion, '18764012345678'),
+    rangoAutorizado: asString(config?.autorizada, '15/01/2025')
   };
 };
 
+// 🔥 AQUÍ ESTÁ EL EXPORT QUE TE ACABA DE REVENTAR EL PROYECTO
 export const buildClientePayload = (clienteInput) => {
   const cliente = clienteInput && typeof clienteInput === 'object' ? clienteInput : {};
   const nombre = asString(cliente.nombre || cliente.nombreCompleto || cliente.razonSocial || '');
@@ -109,20 +113,27 @@ export const buildClientePayload = (clienteInput) => {
   };
 };
 
+// 🔥 AQUÍ ESTÁ EL EXPORT DE LOS ITEMS CORREGIDO PARA QUE NO SE DESALINEE EL CÓDIGO
 export const buildFacturaItemData = (item) => {
   const cantidad = Math.max(1, asNumber(item?.cantidad, 1));
-  const precio = asNumber(item?.precio, 0);
+  const precioConIva = asNumber(item?.precio, 0); 
   const ivaPorcentaje = asNumber(item?.ivaPorcentaje ?? item?.iva ?? 19, 19);
-  const subtotal = Number((cantidad * precio).toFixed(2));
+  
+  const subtotal = Number((cantidad * precioConIva).toFixed(2));
   const ivaLinea = Number((subtotal * (ivaPorcentaje / 100)).toFixed(2));
   const total = Number((subtotal + ivaLinea).toFixed(2));
 
+  let codigoLimpio = asString(item?.codigo) || asString(item?.producto?.codigo) || '';
+  if (codigoLimpio.length > 15) {
+    codigoLimpio = codigoLimpio.substring(0, 15); 
+  }
+
   return {
     productoId: asString(item?.productoId) || null,
-    codigo: asString(item?.codigo) || asString(item?.producto?.codigo) || asString(item?.producto?.idproducto) || null,
+    codigo: codigoLimpio || null,
     nombre: asString(item?.nombre) || asString(item?.producto?.nombre) || 'Producto',
     cantidad,
-    precio,
+    precio: precioConIva,
     ivaPorcentaje,
     subtotal,
     ivaLinea,
@@ -130,6 +141,7 @@ export const buildFacturaItemData = (item) => {
   };
 };
 
+// 🔥 MÁS EXPORTS REQUERIDOS POR EL CONTROLADOR
 export const computeInvoiceTotals = (items, propina = 0, descuento = 0) => {
   const subtotal = Number(items.reduce((sum, item) => sum + Number(item.subtotal || 0), 0).toFixed(2));
   const ivaTotal = Number(items.reduce((sum, item) => sum + Number(item.ivaLinea || 0), 0).toFixed(2));
