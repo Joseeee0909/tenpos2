@@ -20,7 +20,6 @@ const FACTURACION_FIELDS = ['nombre', 'nit', 'direccion', 'telefono', 'email', '
 const FACTURA_STATES = ['BORRADOR', 'GENERADA', 'PENDIENTE_DIAN', 'VALIDADA', 'RECHAZADA', 'ANULADA'];
 
 const ensureDir = (dir) => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); };
-const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 
 const facturaInclude = {
   pedido: {
@@ -59,43 +58,6 @@ const getOrCreateConfig = (empresaId) => prisma.configuracion.upsert({
   create: { empresaId }
 });
 
-const readTaxSettings = (payload = {}) => {
-  const tax = payload.taxSettings || {};
-  const vatPercent = Number(tax.vatPercent ?? 19);
-  const applyVat = tax.applyVat !== false;
-  const pricesIncludeVat = tax.pricesIncludeVat !== false;
-  return { vatPercent, applyVat, pricesIncludeVat };
-};
-
-const readTaxSettingsFromQuery = (query = {}) => {
-  const vatPercent = Number(query.vatPercent ?? 19);
-  const applyVat = String(query.applyVat ?? 'true').toLowerCase() !== 'false';
-  const pricesIncludeVat = String(query.pricesIncludeVat ?? 'true').toLowerCase() !== 'false';
-  return { vatPercent, applyVat, pricesIncludeVat };
-};
-
-const buildTotals = (sum, taxSettings) => {
-  const base = Math.round(Number(sum || 0));
-  const vatRate = taxSettings.applyVat ? taxSettings.vatPercent / 100 : 0;
-
-  if (!vatRate) {
-    return { subtotal: base, ivaTotal: 0, total: base };
-  }
-
-  if (taxSettings.pricesIncludeVat) {
-    const subtotal = Math.round(base / (1 + vatRate));
-    let ivaTotal = Math.round(subtotal * vatRate);
-    const correction = base - (subtotal + ivaTotal);
-    if (correction !== 0) ivaTotal += correction;
-    return { subtotal, ivaTotal, total: base };
-  }
-
-  const subtotal = base;
-  const ivaTotal = Math.round(subtotal * vatRate);
-  return { subtotal, ivaTotal, total: subtotal + ivaTotal };
-};
-
-
 const validateAndDiscountStock = async (tx, empresaId, pedidoItems) => {
   const productIds = [...new Set(pedidoItems.map((item) => item.productoId).filter(Boolean))];
   if (!productIds.length) return;
@@ -131,13 +93,16 @@ const validateAndDiscountStock = async (tx, empresaId, pedidoItems) => {
     throw error;
   }
 
-  for (const item of pedidoItems) {
-    if (!item.productoId) continue;
-    await tx.product.update({
-      where: { id: item.productoId, empresaId },
-      data: { stock: { decrement: Math.abs(Number(item.cantidad || 1)) } }
-    });
-  }
+  await Promise.all(
+    pedidoItems
+      .filter((item) => item.productoId)
+      .map((item) =>
+        tx.product.update({
+          where: { id: item.productoId, empresaId },
+          data: { stock: { decrement: Math.abs(Number(item.cantidad || 1)) } }
+        })
+      )
+  );
 };
 
 export const getConfig = async (req, res) => {
@@ -160,7 +125,6 @@ export const saveConfig = async (req, res) => {
         ...facturacion
       }
     });
-
     res.json(configToFacturacion(config));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -175,27 +139,12 @@ export const generateCUFE = (factura) => {
   return `CUDE-${prefijo}-${numero}-${total}-${fecha.slice(0, 10)}`;
 };
 
-export const generateUBLXML = (factura) => {
-  // Placeholder: build UBL 2.1 XML structure from factura object.
-  // This is intentionally empty until DIAN/Factus integration is implemented.
-  return null;
-};
+export const generateUBLXML = (factura) => null;
+export const signXML = (xml) => null;
+export const sendToDIAN = async (factura) => null;
+export const checkDIANStatus = async (factura) => null;
 
-export const signXML = (xml) => {
-  // Placeholder: sign UBL XML with the company's digital certificate.
-  return null;
-};
-
-export const sendToDIAN = async (factura) => {
-  // Placeholder: send signed UBL XML to DIAN or a third-party provider.
-  return null;
-};
-
-export const checkDIANStatus = async (factura) => {
-  // Placeholder: query DIAN status for a previously submitted factura.
-  return null;
-};
-
+// 🔥 TRANSACCIÓN ATÓMICA BLINDADA Y REPARADA
 export const checkoutPedido = async (req, res) => {
   try {
     const empresaId = req.user.empresaId;
@@ -207,18 +156,20 @@ export const checkoutPedido = async (req, res) => {
 
     if (!pedidoId) return res.status(400).json({ error: 'pedidoId requerido' });
 
-    const pedido = await prisma.pedido.findFirst({
-      where: { id: pedidoId, empresaId },
-      include: {
-        mesa: true,
-        mesero: true,
-        productos: { include: { producto: true } }
-      }
-    });
+    const [pedido, configDoc] = await Promise.all([
+      prisma.pedido.findFirst({
+        where: { id: pedidoId, empresaId },
+        include: {
+          mesa: true,
+          mesero: true,
+          productos: { include: { producto: true } }
+        }
+      }),
+      getOrCreateConfig(empresaId)
+    ]);
 
     if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' });
 
-    const configDoc = await getOrCreateConfig(empresaId);
     const prefijo = normalizeInvoicePrefix(configDoc.prefijo || 'POS');
     const numero = await generateConsecutiveNumber(empresaId, prefijo);
     const emisor = buildEmisorFromConfig(configDoc);
@@ -228,15 +179,29 @@ export const checkoutPedido = async (req, res) => {
     const totals = computeInvoiceTotals(facturaItems, propinaBase);
     const total = totals.total;
     const metodoPagoLabel = formatPaymentMethod(metodoPago);
-    const montoRecibido = toNumber(req.body?.montoRecibido, total);
-    const cambio = Math.max(0, toNumber(req.body?.cambio, 0));
 
+    // Todo se ejecuta dentro del bloque seguro de base de datos
     const factura = await prisma.$transaction(async (tx) => {
       if (String(pedido.estado || '').toLowerCase() !== 'entregado') {
         await validateAndDiscountStock(tx, empresaId, pedido.productos);
       }
 
-      const created = await tx.factura.create({
+      // 1. Cambiamos el estado del pedido a 'entregado' de forma síncrona
+      await tx.pedido.update({
+        where: { id: pedido.id },
+        data: { estado: 'entregado' }
+      });
+
+      // 2. Si el pedido tiene una mesa asociada, cambiamos su estado a 'disponible' de forma síncrona
+      if (pedido.mesaId) {
+        await tx.mesa.update({
+          where: { id: pedido.mesaId },
+          data: { estado: 'disponible' }
+        });
+      }
+
+      // 3. Creamos la factura comercial
+      return await tx.factura.create({
         data: {
           empresaId,
           prefijo,
@@ -255,7 +220,6 @@ export const checkoutPedido = async (req, res) => {
           items: {
             create: facturaItems.map((item) => ({
               productoId: item.productoId,
-              codigo: item.codigo,
               nombre: item.nombre,
               cantidad: item.cantidad,
               precio: item.precio,
@@ -264,76 +228,23 @@ export const checkoutPedido = async (req, res) => {
               total: item.total
             }))
           }
-        },
-        include: facturaInclude
+        }
       });
-
-      await tx.pedido.update({
-        where: { id: pedido.id },
-        data: { estado: 'entregado' }
-      });
-
-      await tx.mesa.update({
-        where: { id: pedido.mesaId },
-        data: { estado: 'disponible' }
-      });
-
-      return created;
     });
 
-    const dir = path.join(process.cwd(), 'storage', 'facturas');
-    ensureDir(dir);
-    const filePath = path.join(dir, `${numero}.pdf`);
-    const seqMatch = numero.match(/-(\d+)$/);
-    const seqNum = seqMatch ? seqMatch[1] : '01';
-
-    const pdfBuffer = await buildInvoicePdfBuffer(
-      {
-        title: 'FACTURA',
-        prefijo,
-        numero,
-        emisor,
-        cliente: clienteData,
-        items: facturaItems,
-        totals,
-        propina: propinaBase,
-        descuento: totals.descuento,
-        metodoPago: metodoPagoLabel,
-        montoRecibido,
-        cambio,
-        mesa: pedido.mesa?.numero ?? null,
-        caja: `caja ${pedido.mesa?.numero ?? 1}`,
-        cajaRef: `${String(pedido.mesa?.numero ?? '1').padStart(6, '0')} - ${String(seqNum).slice(-2).padStart(2, '0')}`,
-        vendedor:
-          pedido.mesero?.nombre ||
-          pedido.mesero?.username ||
-          pedido.responsable ||
-          emisor.razonSocial,
-        estado: formatInvoiceState('GENERADA'),
-        cufe: generateCUFE({ prefijo, numero, total, fecha: new Date().toISOString() }),
-        dianStatus: null,
-        fecha: new Date().toISOString(),
-        taxSettings: getTaxSettingsSummary(configDoc)
-      },
-      { pageSize: '80mm' }
-    );
-    fs.writeFileSync(filePath, pdfBuffer);
-
-    const updated = await prisma.factura.update({
-      where: { id: factura.id },
-      data: { pdfPath: filePath },
-      include: facturaInclude
+    // 🚀 RESPUESTA INMEDIATA Y SEGURA: Los datos en DB ya cambiaron al 100%
+    return res.json({
+      factura: mapFactura(factura),
+      pdfUrl: `/api/facturas/${numero}/pdf`,
+      pdfBase64: null 
     });
 
-    // Also return base64 for immediate frontend display (avoids extra GET/token issues)
-    const pdfBase64 = Buffer.isBuffer(pdfBuffer) ? pdfBuffer.toString('base64') : null;
-
-    res.json({ factura: mapFactura(updated), pdfUrl: `/api/facturas/${numero}/pdf`, pdfBase64 });
   } catch (error) {
+    console.error("Error en checkoutPedido:", error);
     if (error.status === 409) {
       return res.status(409).json({ error: error.message, items: error.items });
     }
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -343,10 +254,7 @@ export const previewFactura = async (req, res) => {
     if (!pedidoId) return res.status(400).json({ error: 'pedidoId requerido' });
 
     const pedido = await prisma.pedido.findFirst({
-      where: {
-        id: String(pedidoId),
-        empresaId: req.user.empresaId
-      },
+      where: { id: String(pedidoId), empresaId: req.user.empresaId },
       include: {
         mesa: true,
         productos: { include: { producto: true } }
@@ -397,9 +305,9 @@ export const previewFactura = async (req, res) => {
     );
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.send(pdfBuffer);
+    return res.send(pdfBuffer);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -409,9 +317,8 @@ export const listFacturas = async (req, res) => {
       where: { empresaId: req.user.empresaId },
       include: facturaInclude,
       orderBy: { fecha: 'desc' },
-      take: 200
+      take: 50 
     });
-
     res.json(facturas.map(mapFactura));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -424,16 +331,95 @@ export const getFacturaPdf = async (req, res) => {
       where: {
         empresaId: req.user.empresaId,
         numero: req.params.numero
+      },
+      include: {
+        pedido: { 
+          include: { 
+            mesero: true,
+            productos: { include: { producto: true } }
+          } 
+        },
+        items: true
       }
     });
 
-    if (!factura?.pdfPath || !fs.existsSync(factura.pdfPath)) {
-      return res.status(404).json({ error: 'PDF no encontrado' });
+    if (!factura) return res.status(404).json({ error: 'Factura no encontrada' });
+
+    const dir = path.join(process.cwd(), 'storage', 'facturas');
+    ensureDir(dir);
+    const cleanInvoiceNumber = String(factura.numero).replace(/[^a-zA-Z0-9-]/g, '_');
+    const filePath = path.join(dir, `ticket-${cleanInvoiceNumber}.pdf`);
+
+    if (fs.existsSync(filePath)) {
+      res.setHeader('Content-Type', 'application/pdf');
+      return res.send(fs.readFileSync(filePath));
     }
 
+    const configDoc = await getOrCreateConfig(req.user.empresaId);
+    const prefijo = factura.prefijo;
+    const numero = factura.numero;
+    const emisor = factura.emisor;
+    const clienteData = factura.cliente;
+    
+    const facturaItems = factura.items.map(item => ({
+      productoId: item.productoId,
+      nombre: item.nombre,
+      cantidad: item.cantidad,
+      precio: item.precio,
+      ivaPorcentaje: item.ivaPorcentaje,
+      subtotal: item.subtotal,
+      total: item.total
+    }));
+
+    const totals = {
+      subtotal: factura.subtotal,
+      ivaTotal: factura.ivaTotal,
+      descuento: 0,
+      total: factura.total
+    };
+
+    const seqMatch = numero.match(/-(\d+)$/);
+    const seqNum = seqMatch ? seqMatch[1] : '01';
+
+    const invoicePayload = {
+      title: 'FACTURA',
+      prefijo,
+      numero,
+      emisor,
+      cliente: clienteData,
+      items: facturaItems,
+      totals,
+      propina: factura.propina,
+      descuento: 0,
+      metodoPago: factura.metodoPago,
+      montoRecibido: factura.total, 
+      cambio: 0,
+      mesa: factura.mesa,
+      caja: `caja ${factura.mesa ?? 1}`,
+      cajaRef: `${String(factura.mesa ?? '1').padStart(6, '0')} - ${String(seqNum).slice(-2).padStart(2, '0')}`,
+      vendedor: factura.pedido?.mesero?.nombre || factura.pedido?.mesero?.username || emisor.razonSocial,
+      estado: formatInvoiceState('GENERADA'),
+      cufe: generateCUFE({ prefijo, numero, total: factura.total, fecha: factura.fecha.toISOString() }),
+      dianStatus: null,
+      fecha: factura.fecha.toISOString(),
+      taxSettings: getTaxSettingsSummary(configDoc)
+    };
+
+    const pdfBuffer = await buildInvoicePdfBuffer(invoicePayload, { pageSize: '80mm' });
+    
+    fs.promises.writeFile(filePath, pdfBuffer)
+      .then(() => {
+        prisma.factura.update({
+          where: { id: factura.id },
+          data: { pdfPath: filePath }
+        }).catch(err => console.error("Error actualizando ruta PDF:", err));
+      })
+      .catch(err => console.error("Error guardando archivo PDF de fondo:", err));
+
     res.setHeader('Content-Type', 'application/pdf');
-    res.send(fs.readFileSync(factura.pdfPath));
+    return res.send(pdfBuffer);
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };

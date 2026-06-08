@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import authService from '../services/api';
 import PageHeader from '../components/PageHeader';
 import { UxConfirm, UxToast } from '../components/UXFeedback';
-import { toCurrency, formatClock, getCategoryEmoji } from '../utils/format';
-import { buildTotals, useTaxSettings } from '../utils/tax';
+import { getStoredSettings } from '../utils/settings';
 import '../styles/pedido.css';
 
 const STATUS_SEQUENCE = ['pendiente', 'preparando', 'listo', 'entregado'];
@@ -13,6 +12,51 @@ const STATUS_LABEL = {
   preparando: 'Preparando',
   listo: 'Listo',
   entregado: 'Entregado'
+};
+
+const toCurrency = (value) => `$${Math.round(Number(value || 0)).toLocaleString('es-CO')}`;
+
+const readTaxSettings = () => {
+  const stored = getStoredSettings();
+  const vatPercent = Number(stored.vatPercent ?? 19);
+  const applyVat = stored.applyVat !== false;
+  const pricesIncludeVat = stored.pricesIncludeVat !== false;
+  return { vatPercent, applyVat, pricesIncludeVat };
+};
+
+const buildTotals = (sum, taxSettings) => {
+  const base = Math.round(Number(sum || 0));
+  const vatRate = taxSettings.applyVat ? taxSettings.vatPercent / 100 : 0;
+
+  if (!vatRate) {
+    return { subtotal: base, tax: 0, total: base };
+  }
+
+  if (taxSettings.pricesIncludeVat) {
+    const subtotal = Math.round(base / (1 + vatRate));
+    let tax = Math.round(subtotal * vatRate);
+    const correction = base - (subtotal + tax);
+    if (correction !== 0) tax += correction;
+    return { subtotal, tax, total: base };
+  }
+
+  const subtotal = base;
+  const tax = Math.round(subtotal * vatRate);
+  return { subtotal, tax, total: subtotal + tax };
+};
+const getTime = (dateValue) => {
+  const date = new Date(dateValue || Date.now());
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+};
+
+const categoryEmoji = {
+  comida: '🍛',
+  bebidas: '🥤',
+  bebida: '🥤',
+  entradas: '🥟',
+  postres: '🍰',
+  postre: '🍰',
+  otro: '🍽️'
 };
 
 const getDefaultResponsable = () => {
@@ -52,7 +96,7 @@ export default function PedidosPage() {
   const [responsableFormValue, setResponsableFormValue] = useState('');
   const [notice, setNotice] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
-  const taxSettings = useTaxSettings();
+  const [taxSettings, setTaxSettings] = useState(readTaxSettings);
 
   const pushNotice = (message, type = 'info') => {
     setNotice({ message, type, id: Date.now() });
@@ -89,25 +133,38 @@ export default function PedidosPage() {
     return map;
   }, [products]);
 
+  useEffect(() => {
+    const handleSettings = () => setTaxSettings(readTaxSettings());
+    const handleStorage = (event) => {
+      if (event.key === 'app_settings') handleSettings();
+    };
+    window.addEventListener('app-settings-updated', handleSettings);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('app-settings-updated', handleSettings);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
   const normalizedOrders = useMemo(() => {
     return orders.map((o) => {
       const items = Array.isArray(o.productos)
         ? o.productos.map((item) => {
             const productId = item?.productoId?.id || item?.productoId || null;
             const realProduct = productById.get(String(productId || ''));
+            const category = (realProduct?.categoria || '').toLowerCase();
             const name = item?.nombre || realProduct?.nombre || 'Producto';
             const price = Number(item?.precio ?? realProduct?.precio ?? 0);
             const qty = Number(item?.cantidad ?? 1);
             const obs = item?.obs || '';
-            const cat = realProduct?.categoria || 'otro';
             return {
               productId: productId ? String(productId) : null,
               name,
               price,
               qty,
               obs,
-              cat,
-              emoji: getCategoryEmoji(cat)
+              cat: realProduct?.categoria || 'otro',
+              emoji: categoryEmoji[category] || categoryEmoji.otro
             };
           })
         : [];
@@ -121,7 +178,7 @@ export default function PedidosPage() {
         table: `Mesa ${o.mesa}`,
         resp: o?.mesero?.nombre || o?.mesero?.username || o?.responsable || 'Sin asignar',
         status: o.estado,
-        time: formatClock(o.fecha),
+        time: getTime(o.fecha),
         fecha: o.fecha,
         items,
         subtotal: totals.subtotal,
@@ -180,46 +237,26 @@ export default function PedidosPage() {
   const cartTax = cartTotals.tax;
   const cartTotal = cartTotals.total;
 
-  const loadContext = useCallback(async () => {
+  const loadAll = async () => {
     try {
-      const data = await authService.getPedidosContext();
-      setOrders(Array.isArray(data?.pedidos) ? data.pedidos : []);
-      setMesas(Array.isArray(data?.mesas) ? data.mesas : []);
-      setProducts(Array.isArray(data?.productos) ? data.productos : []);
+      const [pedidosData, mesasData, productosData] = await Promise.all([
+        authService.getPedidos(),
+        authService.getMesas(),
+        authService.getProducts()
+      ]);
+      setOrders(Array.isArray(pedidosData) ? pedidosData : []);
+      setMesas(Array.isArray(mesasData) ? mesasData : []);
+      const safeProducts = Array.isArray(productosData) ? productosData : [];
+      setProducts(safeProducts.filter((p) => p?.disponible !== false));
     } catch (error) {
       console.error('Error cargando datos de pedidos:', error);
       pushNotice('No se pudieron cargar pedidos, productos y mesas.', 'error');
     }
-  }, []);
-
-  const upsertOrder = useCallback((pedido) => {
-    if (!pedido?.id) return;
-    setOrders((prev) => {
-      const idx = prev.findIndex((o) => o.id === pedido.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = pedido;
-        return next;
-      }
-      return [pedido, ...prev];
-    });
-  }, []);
-
-  const removeOrder = useCallback((orderId) => {
-    setOrders((prev) => prev.filter((o) => o.id !== orderId));
-  }, []);
-
-  const patchMesaEstado = useCallback((mesaNumero, estado) => {
-    setMesas((prev) =>
-      prev.map((m) =>
-        Number(m.numero) === Number(mesaNumero) ? { ...m, estado } : m
-      )
-    );
-  }, []);
+  };
 
   useEffect(() => {
-    loadContext();
-  }, [loadContext]);
+    loadAll();
+  }, []);
 
   useEffect(() => {
     if (!notice) return;
@@ -309,7 +346,7 @@ export default function PedidosPage() {
         updated[idx] = { ...updated[idx], qty: updated[idx].qty + 1 };
         return updated;
       }
-      const cat = product.categoria || 'otro';
+      const cat = (product.categoria || 'otro').toLowerCase();
       return [
         ...prev,
         {
@@ -318,8 +355,8 @@ export default function PedidosPage() {
           price: Number(product.precio || 0),
           qty: 1,
           obs: '',
-          cat,
-          emoji: getCategoryEmoji(cat)
+          cat: product.categoria || 'otro',
+          emoji: categoryEmoji[cat] || categoryEmoji.otro
         }
       ];
     });
@@ -350,6 +387,14 @@ export default function PedidosPage() {
     });
   };
 
+  const getMesaByNumero = (numero) => mesas.find((m) => Number(m.numero) === Number(numero));
+
+  const updateMesaState = async (mesaNumero, estado) => {
+    const mesa = getMesaByNumero(mesaNumero);
+    if (!mesa) return;
+    await authService.actualizarMesa(mesa.id, { estado });
+  };
+
   const saveOrder = async () => {
     if (!mesaFormValue) {
       pushNotice('Selecciona una mesa antes de confirmar el pedido.', 'warning');
@@ -362,17 +407,10 @@ export default function PedidosPage() {
 
     setSaving(true);
     try {
-      const mesaRecord = mesas.find(
-        (m) => Number(m.numero) === Number(mesaFormValue)
-      );
-
       const payload = {
-        mesaId: mesaRecord?.id,
         mesa: Number(mesaFormValue),
         responsable: (responsableFormValue || '').trim() || getDefaultResponsable(),
-        estado: editingOrderId
-          ? normalizedOrders.find((o) => o._id === editingOrderId)?.status || 'pendiente'
-          : 'pendiente',
+        estado: editingOrderId ? normalizedOrders.find((o) => o.id === editingOrderId)?.status || 'pendiente' : 'pendiente',
         productos: cart.map((i) => ({
           productoId: i.productId,
           nombre: i.name,
@@ -388,18 +426,19 @@ export default function PedidosPage() {
         if (meseroId) payload.mesero = meseroId;
       }
 
-      let savedPedido;
       if (editingOrderId) {
-        savedPedido = await authService.actualizarPedido(editingOrderId, payload);
+        await authService.actualizarPedido(editingOrderId, payload);
       } else {
-        savedPedido = await authService.crearPedido(payload);
+        await authService.crearPedido(payload);
       }
 
-      upsertOrder(savedPedido);
-      patchMesaEstado(
-        payload.mesa,
-        payload.estado === 'entregado' ? 'disponible' : 'ocupada'
-      );
+      if (payload.estado === 'entregado') {
+        await updateMesaState(payload.mesa, 'disponible');
+      } else {
+        await updateMesaState(payload.mesa, 'ocupada');
+      }
+
+      await loadAll();
       goList();
       setSelectedOrderId(null);
       pushNotice(editingOrderId ? 'Pedido actualizado correctamente.' : 'Pedido creado correctamente.', 'success');
@@ -420,8 +459,8 @@ export default function PedidosPage() {
       onConfirm: async () => {
         try {
           await authService.eliminarPedido(order._id);
-          removeOrder(order._id);
-          patchMesaEstado(order.mesaNumero, 'disponible');
+          await updateMesaState(order.mesaNumero, 'disponible');
+          await loadAll();
           setSelectedOrderId(null);
           pushNotice('Pedido eliminado correctamente.', 'success');
         } catch (error) {
@@ -436,12 +475,12 @@ export default function PedidosPage() {
     try {
       const idx = STATUS_SEQUENCE.indexOf(order.status);
       const nextStatus = STATUS_SEQUENCE[Math.min(idx + 1, STATUS_SEQUENCE.length - 1)];
-      const updated = await authService.actualizarPedido(order._id, { estado: nextStatus });
-      upsertOrder(updated);
+      await authService.actualizarPedido(order._id, { estado: nextStatus });
       if (nextStatus === 'entregado') {
-        patchMesaEstado(order.mesaNumero, 'disponible');
+        await updateMesaState(order.mesaNumero, 'disponible');
       }
-      setSelectedOrderId(order.id);
+      await loadAll();
+      setSelectedOrderId(order._id);
       pushNotice(`Pedido ${order._id} actualizado a ${STATUS_LABEL[nextStatus]}.`, 'success');
     } catch (error) {
       console.error('Error avanzando estado:', error);
@@ -678,7 +717,8 @@ export default function PedidosPage() {
 
               <div className="prod-grid">
                 {filteredProducts.map((product) => {
-                  const emoji = getCategoryEmoji(product.categoria);
+                  const cat = (product.categoria || '').toLowerCase();
+                  const emoji = categoryEmoji[cat] || categoryEmoji.otro;
                   return (
                     <div key={product.id} className="prod-tile" onClick={() => addCart(product)}>
                       <div className="prod-tile-top"><span className="prod-tile-emoji">{emoji}</span><span className="prod-tile-plus">+</span></div>
