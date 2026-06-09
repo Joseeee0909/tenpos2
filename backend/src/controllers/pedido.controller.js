@@ -211,10 +211,16 @@ const ejecutarDescuentoInventario = async (tx, empresaId, items) => {
     if (!producto) continue;
 
     // 1. Restar stock directo del Producto terminado
-    await tx.product.update({
-      where: { id: item.productoId, empresaId },
-      data: { stock: { decrement: item.cantidad } }
-    });
+    tx.product.update({
+      where: { id: item.productoId },
+      data: { stock: { decrement: Math.abs(Number(item.cantidad || 1)) } }
+    })
+    where: {
+      id_empresaId: {
+      id: item.productoId,
+      empresaId
+      }
+}
 
     // 2. Restar stock de las Materias Primas ligadas a su receta
     if (producto.recetas && producto.recetas.length > 0) {

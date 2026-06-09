@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import authService from '../services/api.js'; 
 import '../styles/AIInventoryModal.css';
+import { buildPurchaseOrder } from '../services/inventoryAI.service';
 
 const AIInventoryModal = ({ isOpen, onClose }) => {
   // 1. DECLARACIÓN DE ESTADOS ADAPTADOS AL JSON REAL
@@ -258,17 +259,20 @@ const AIInventoryModal = ({ isOpen, onClose }) => {
             className="ai-btn-primary" 
             disabled={loading || error || iaData.inventario_completo?.length === 0} 
             onClick={() => {
-              // Filtramos solo los insumos donde el usuario colocó un número mayor a 0
-              const productosAComprar = Object.entries(quantities)
-                .filter(([_, qty]) => qty > 0)
-                .map(([id, qty]) => {
-                  const prod = iaData.inventario_completo.find(i => i.id === id);
-                  return { id, nombre: prod?.nombre, cantidad: qty };
-                });
-              
-              console.log("Ordenes de compra estructuradas para enviar a tu módulo de proveedores:", productosAComprar);
-              alert(`¡Éxito! Se estructuraron ${productosAComprar.length} sugerencias para el módulo de compras.`);
-            }}
+              const productosAComprar = buildPurchaseOrder(
+              quantities,
+              iaData.inventario_completo || []
+              );
+
+              console.log(
+              "Ordenes de compra estructuradas:",
+              productosAComprar
+            );
+
+            alert(
+              `¡Éxito! Se generaron ${productosAComprar.length} productos para compra.`
+            );
+}}
           >
             ✓ Enviar a Orden de Compra
           </button>

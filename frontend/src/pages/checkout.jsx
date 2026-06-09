@@ -137,11 +137,18 @@ export default function CheckoutPage() {
   }, [discountValue, totals.total]);
 
   const grandTotal = totals.total + tipAmount - discountAmount;
-  const change =
-    paymentMethod === 'cash' && amountReceived
-      ? Math.max(0, Math.round(Number(amountReceived) - grandTotal))
-      : 0;
+  const change = useMemo(() => {
+    if (paymentMethod !== 'cash') return 0;
 
+    const recibido = Number(amountReceived || 0);
+
+  if (isNaN(recibido)) return 0;
+
+    return Math.max(
+      0,
+      recibido - grandTotal
+    );
+  }, [amountReceived, grandTotal, paymentMethod]);
   const openPreviewPdf = async () => {
     try {
       const res = await authService.api.get('/facturas/preview', {
@@ -166,45 +173,95 @@ export default function CheckoutPage() {
     }
   };
 
-  // 🛍️ PROCESO DE VENTA COMPLETO MODIFICADO
   const handleCompleteSale = async () => {
-    try {
-      setIsProcessing(true); // Bloquea los botones del modal para evitar doble click, sin poner pantalla de carga
 
-      // 1. Enviamos la orden al backend
-      const result = await authService.checkoutPedido({
-        pedidoId: pedido.id,
-        metodoPago: paymentMethod,
-        incluirPropina: includeTip,
-        propinaPercent: tipPercent,
-        taxSettings,
-        mesero: getCurrentUserId()
-      });
+  if (paymentMethod === 'cash') {
+    const recibido = Number(amountReceived || 0);
 
-      // 2. Si el backend responde, abrimos el PDF inmediatamente
-      if (result?.factura?.numero) {
-        authService.api.get(`/facturas/${result.factura.numero}/pdf`, { responseType: 'blob' })
-          .then((res) => {
-            const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-            window.open(url, '_blank');
-          })
-          .catch((err) => console.error("Error al obtener el archivo PDF:", err));
-      }
-
-      // 🔥 LIMPIEZA TOTAL PARA FORZAR LA LIBERACIÓN DE LA MESA EN EL FRONTEND
-      setPedido(null);
-      closeModal('complete');
-      
-      // 3. Te manda directo a las mesas sin escalas
-      navigate('/mesas', { state: { saleSuccess: true, mesaLiberada: mesaNumero } });
-
-    } catch (e) {
-      console.error(e);
-      pushNotice('Error completando venta', 'error');
-    } finally {
-      setIsProcessing(false);
+    if (!recibido) {
+      pushNotice(
+        'Debes ingresar el valor recibido.',
+        'warning'
+      );
+      return;
     }
-  };
+
+    if (recibido < grandTotal) {
+      pushNotice(
+        `El valor recibido es insuficiente. Faltan ${toCurrency(
+          grandTotal - recibido
+        )}`,
+        'error'
+      );
+      return;
+    }
+  }
+
+  try {
+    setIsProcessing(true);
+
+    const result = await authService.checkoutPedido({
+  pedidoId: pedido.id,
+  metodoPago: paymentMethod,
+  incluirPropina: includeTip,
+  propinaPercent: tipPercent,
+  taxSettings,
+  mesero: getCurrentUserId(),
+
+  montoRecibido:
+    paymentMethod === 'cash'
+      ? Number(amountReceived)
+      : grandTotal,
+
+  cambio:
+    paymentMethod === 'cash'
+      ? change
+      : 0
+});
+
+    if (result?.factura?.numero) {
+      authService.api
+        .get(`/facturas/${result.factura.numero}/pdf`, {
+          responseType: 'blob'
+        })
+        .then((res) => {
+          const url = window.URL.createObjectURL(
+            new Blob([res.data], {
+              type: 'application/pdf'
+            })
+          );
+
+          window.open(url, '_blank');
+        })
+        .catch((err) =>
+          console.error(
+            'Error al obtener el archivo PDF:',
+            err
+          )
+        );
+    }
+
+    setPedido(null);
+
+    closeModal('complete');
+
+    navigate('/mesas', {
+      state: {
+        saleSuccess: true,
+        mesaLiberada: mesaNumero
+      }
+    });
+
+  } catch (e) {
+    console.error(e);
+    pushNotice(
+      'Error completando venta',
+      'error'
+    );
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
   const handleEditPedido = () => {
     closeModal('edit');
