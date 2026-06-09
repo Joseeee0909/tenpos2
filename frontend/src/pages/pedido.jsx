@@ -15,13 +15,17 @@ const STATUS_LABEL = {
 };
 
 const toCurrency = (value) => `$${Math.round(Number(value || 0)).toLocaleString('es-CO')}`;
-
 const readTaxSettings = () => {
   const stored = getStoredSettings();
+
   const vatPercent = Number(stored.vatPercent ?? 19);
   const applyVat = stored.applyVat !== false;
   const pricesIncludeVat = stored.pricesIncludeVat !== false;
-  return { vatPercent, applyVat, pricesIncludeVat };
+  return {
+    vatPercent,
+    applyVat,
+    pricesIncludeVat
+  };
 };
 
 const buildTotals = (sum, taxSettings) => {
@@ -83,7 +87,6 @@ export default function PedidosPage() {
   const [mesas, setMesas] = useState([]);
   const [products, setProducts] = useState([]);
   const [currentFilter, setCurrentFilter] = useState('all');
-  const [searchText, setSearchText] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [view, setView] = useState('list');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
@@ -97,7 +100,7 @@ export default function PedidosPage() {
   const [notice, setNotice] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
   const [taxSettings, setTaxSettings] = useState(readTaxSettings);
-
+  const [searchText, setSearchText] = useState('');
   const pushNotice = (message, type = 'info') => {
     setNotice({ message, type, id: Date.now() });
   };
@@ -396,59 +399,72 @@ export default function PedidosPage() {
   };
 
   const saveOrder = async () => {
-    if (!mesaFormValue) {
-      pushNotice('Selecciona una mesa antes de confirmar el pedido.', 'warning');
-      return;
+  if (!mesaFormValue) {
+    pushNotice('Selecciona una mesa antes de confirmar el pedido.', 'warning');
+    return;
+  }
+
+  if (!cart.length) {
+  pushNotice('Agrega al menos un producto para crear el pedido.', 'warning');
+  return;
+  }
+
+  setSaving(true);
+
+  try {
+    const payload = {
+      mesa: Number(mesaFormValue),
+      responsable:
+        (responsableFormValue || '').trim() ||
+        getDefaultResponsable(),
+      estado: 'pendiente',
+      productos: cart.map((i) => ({
+        productoId: i.productId,
+        nombre: i.name,
+        precio: Number(i.price || 0),
+        cantidad: Number(i.qty || 1),
+        obs: i.obs || ''
+      })),
+      total: cartTotal
+    };
+
+    if (!editingOrderId) {
+      const meseroId = getDefaultMeseroId();
+      if (meseroId) payload.mesero = meseroId;
     }
-    if (!cart.length) {
-      pushNotice('Agrega al menos un producto para crear el pedido.', 'warning');
-      return;
+
+    if (editingOrderId) {
+      await authService.actualizarPedido(editingOrderId, payload);
+    } else {
+      await authService.crearPedido(payload);
     }
 
-    setSaving(true);
-    try {
-      const payload = {
-        mesa: Number(mesaFormValue),
-        responsable: (responsableFormValue || '').trim() || getDefaultResponsable(),
-        estado: editingOrderId ? normalizedOrders.find((o) => o.id === editingOrderId)?.status || 'pendiente' : 'pendiente',
-        productos: cart.map((i) => ({
-          productoId: i.productId,
-          nombre: i.name,
-          precio: Number(i.price || 0),
-          cantidad: Number(i.qty || 1),
-          obs: i.obs || ''
-        })),
-        total: cartTotal
-      };
+    await updateMesaState(payload.mesa, 'ocupada');
 
-      if (!editingOrderId) {
-        const meseroId = getDefaultMeseroId();
-        if (meseroId) payload.mesero = meseroId;
-      }
+    await loadAll();
 
-      if (editingOrderId) {
-        await authService.actualizarPedido(editingOrderId, payload);
-      } else {
-        await authService.crearPedido(payload);
-      }
+    goList();
+    setSelectedOrderId(null);
 
-      if (payload.estado === 'entregado') {
-        await updateMesaState(payload.mesa, 'disponible');
-      } else {
-        await updateMesaState(payload.mesa, 'ocupada');
-      }
+    pushNotice(
+      editingOrderId
+        ? 'Pedido actualizado correctamente.'
+        : 'Pedido creado correctamente.',
+      'success'
+    );
 
-      await loadAll();
-      goList();
-      setSelectedOrderId(null);
-      pushNotice(editingOrderId ? 'Pedido actualizado correctamente.' : 'Pedido creado correctamente.', 'success');
-    } catch (error) {
-      console.error('Error guardando pedido:', error);
-      pushNotice(error?.response?.data?.error || 'No se pudo guardar el pedido.', 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
+  } catch (error) {
+    console.error('Error guardando pedido:', error);
+
+    pushNotice(
+      error?.response?.data?.error ||
+      'No se pudo guardar el pedido.',
+      'error'
+    );
+  } finally {
+    setSaving(false);
+  }
+};
 
   const deleteOrder = async (order) => {
     openConfirm({
@@ -812,4 +828,4 @@ export default function PedidosPage() {
       </div>
     </div>
   );
-}
+};

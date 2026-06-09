@@ -20,7 +20,7 @@ class MateriaPrima {
   }
 
   async guardar() {
-    return await prisma.MateriaPrima.create({
+    return await prisma.materiaPrima.create({
       data: {
         empresaId: this.empresaId,
         idMateriaPrima: this.idMateriaPrima,
@@ -34,13 +34,13 @@ class MateriaPrima {
   }
 
   static async obtenerTodos(empresaId) {
-    return await prisma.MateriaPrima.findMany({
+    return await prisma.materiaPrima.findMany({
       where: { empresaId },
     });
   }
 
   static async obtenerPorId(idMateriaPrima, empresaId) {
-    return await prisma.MateriaPrima.findFirst({
+    return await prisma.materiaPrima.findFirst({
       where: {
       empresaId_idMateriaPrima: {
         empresaId,
@@ -51,7 +51,7 @@ class MateriaPrima {
   }
 
   static async eliminarPorId(idMateriaPrima, empresaId) {
-    return await prisma.MateriaPrima.update({
+    return await prisma.materiaPrima.update({
       where: {
       empresaId_idMateriaPrima: {
         empresaId,

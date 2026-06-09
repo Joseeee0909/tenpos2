@@ -153,6 +153,7 @@ export const checkoutPedido = async (req, res) => {
     const metodoPago = asString(req.body?.metodoPago, 'Efectivo') || 'Efectivo';
     const incluirPropina = toBoolean(req.body?.incluirPropina, false);
     const propinaPercent = toNumber(req.body?.propinaPercent, 10);
+    console.log("Checkout pedidoId:", pedidoId, "metodoPago:", metodoPago, "incluirPropina:", incluirPropina, "propinaPercent:", propinaPercent);
 
     if (!pedidoId) return res.status(400).json({ error: 'pedidoId requerido' });
 
@@ -179,6 +180,11 @@ export const checkoutPedido = async (req, res) => {
     const totals = computeInvoiceTotals(facturaItems, propinaBase);
     const total = totals.total;
     const metodoPagoLabel = formatPaymentMethod(metodoPago);
+    const {
+  montoRecibido,
+  cambio,
+  paymentMethod
+} = req.body;
 
     // Todo se ejecuta dentro del bloque seguro de base de datos
     const factura = await prisma.$transaction(async (tx) => {
@@ -213,6 +219,8 @@ export const checkoutPedido = async (req, res) => {
           propina: propinaBase,
           total,
           metodoPago: metodoPagoLabel,
+          montoRecibido: Number(montoRecibido ?? total),
+          cambio: Number(cambio ?? 0),
           estado: 'GENERADA',
           pedidoId: pedido.id,
           meseroId: pedido.meseroId || req.user.id || null,

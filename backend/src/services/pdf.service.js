@@ -254,12 +254,13 @@ const renderTicketContent = async (invoice, doc, isMeasuring = false) => {
 
   // --- Totales ---
   const subtotal = items.reduce((sum, item) => sum + Number(item.subtotal ?? Math.max(1, Number(item.cantidad || 1)) * Number(item.precio || 0)), 0);
-  const impuesto = Number(invoice.ivaTotal ?? invoice.totals?.ivaTotal ?? 0);
+  const impuesto = Number(invoice.ivaTotal ?? invoice.total?.ivaTotal ?? 0);
   const total = Number(invoice.total ?? invoice.totals?.total ?? subtotal + impuesto);
   const montoPago = Number(invoice.montoRecibido != null ? invoice.montoRecibido : total);
   const cambio = Math.max(0, Number(invoice.cambio ?? 0));
   const pagoLabel = getPaymentTicketLabel(invoice.metodoPago);
   const totalItems = items.length;
+  
 
   drawTotalRow(doc, left, printableWidth, 'TOTAL ITEMS', totalItems, { isMeasuring });
   drawTotalRow(doc, left, printableWidth, 'SUBTOTAL', subtotal, { isMeasuring });
@@ -391,7 +392,7 @@ export const buildInvoicePdfBuffer = async (invoice, options = {}) => {
   const taxSettings = invoice.taxSettings || {};
   const companyName = company.razonSocial || company.nombre || 'TENPOS';
   const formattedDate = formatDateTime(invoice.fecha);
-  const paymentMethod = translatePaymentMethod(invoice.metodoPago);
+  const paymentMethod = invoice.metodoPago;
 
   doc.font('Helvetica-Bold').fontSize(20).text(companyName, { align: 'center' });
   doc.moveDown(0.2);

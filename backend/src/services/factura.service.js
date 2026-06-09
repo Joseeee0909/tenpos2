@@ -10,6 +10,12 @@ const PAYMENT_METHOD_LABELS = {
   daviplata: 'Daviplata'
 };
 
+export const translatePaymentMethod = (method) => {
+  if (!method) return PAYMENT_METHOD_LABELS.cash;
+  const normalized = String(method).toLowerCase();
+  return PAYMENT_METHOD_LABELS[normalized] || method;
+};
+
 const KNOWN_FACTURA_STATES = ['BORRADOR', 'GENERADA', 'PENDIENTE_DIAN', 'VALIDADA', 'RECHAZADA', 'ANULADA'];
 
 const parseNitValue = (nit = '') => {
