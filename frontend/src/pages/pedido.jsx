@@ -425,7 +425,16 @@ export default function PedidosPage() {
         const meseroId = getDefaultMeseroId();
         if (meseroId) payload.mesero = meseroId;
       }
+      if (!editingOrderId) {
+        const meseroId = getDefaultMeseroId();
+        if (meseroId) payload.mesero = meseroId;
+      }
 
+      if (editingOrderId) {
+        await authService.actualizarPedido(editingOrderId, payload);
+      } else {
+        await authService.crearPedido(payload);
+      }
       if (editingOrderId) {
         await authService.actualizarPedido(editingOrderId, payload);
       } else {
@@ -484,7 +493,12 @@ export default function PedidosPage() {
       pushNotice(`Pedido ${order._id} actualizado a ${STATUS_LABEL[nextStatus]}.`, 'success');
     } catch (error) {
       console.error('Error avanzando estado:', error);
-      pushNotice('No se pudo actualizar el estado del pedido.', 'error');
+      
+      if (error?.response?.status === 409 && error?.response?.data?.detalles) {
+        pushNotice(`No se puede entregar: ${error.response.data.detalles.join(' / ')}`, 'error');
+      } else {
+        pushNotice('No se pudo actualizar el estado del pedido.', 'error');
+      }
     }
   };
 

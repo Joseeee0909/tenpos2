@@ -223,14 +223,13 @@ const ejecutarDescuentoInventario = async (tx, empresaId, items) => {
           const descuentoMP = Number(receta.cantidad) * item.cantidad;
           return tx.materiaPrima.update({
             where: { id: receta.materiaPrimaId, empresaId },
-            data: { stock: { decrement: Math.ceil(descuentoMP) } } // Forzamos entero si tu stock es Int
+            data: { stock: { decrement: Math.ceil(descuentoMP) } }
           });
         })
       );
     }
   }
 };
-
 
 // =======================
 // 🚀 CREAR PEDIDO (Con Validación de Stock e Ingredientes)

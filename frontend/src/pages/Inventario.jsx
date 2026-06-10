@@ -283,7 +283,7 @@ export default function InventarioPage() {
   };
 
   return (
-    <div className="products-v3 app">
+    <div className="inventary app">
       <UxToast notice={notice} onClose={() => setNotice(null)} />
 
       <PageHeader
